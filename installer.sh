@@ -12,54 +12,43 @@ NC='\033[0m' # No Color
 show_header() {
     echo -e "${PURPLE}"
     echo "╔══════════════════════════════════════════════════════╗"
-    echo "║                 HUEKKA USERBOT INSTALLER             ║"
+    echo "║                 HUEKKA USERBOT INSTALLER            ║"
     echo "╚══════════════════════════════════════════════════════╝"
     echo -e "${NC}"
 }
 
 # Функция для отображения ошибки
 show_error() {
-    echo -e "${RED}Error: $1${NC}"
-    echo "Press any key to continue..."
+    echo -e "${RED}Ошибка: $1${NC}"
+    echo "Нажмите любую клавишу для продолжения..."
     read -n 1
-}
-
-# Функция для проверки и установки необходимых пакетов
-install_required_packages() {
-    echo -e "${YELLOW}Checking and installing required system packages...${NC}"
-    
-    # Проверяем и устанавливаем Python если не установлен
-    if ! command -v python &> /dev/null && ! command -v python3 &> /dev/null; then
-        echo "Installing Python..."
-        pkg install python -y
-    fi
-    
-    # Устанавливаем необходимые системные зависимости
-    echo "Installing system dependencies..."
-    pkg install clang libffi openssl -y
-    
-    echo -e "${GREEN}System packages installed successfully!${NC}"
 }
 
 # Функция для установки Python зависимостей
 install_python_dependencies() {
-    echo -e "${YELLOW}Installing Python dependencies...${NC}"
+    echo -e "${YELLOW}Установка Python зависимостей...${NC}"
     
     # Проверяем наличие файла requirements.txt
     if [ ! -f "requirements.txt" ]; then
-        show_error "requirements.txt not found!"
+        show_error "Файл requirements.txt не найден!"
         return 1
     fi
     
     # Устанавливаем зависимости
-    pkg install --upgrade pip
-    pip install -r requirements.txt
+    if command -v pip3 &> /dev/null; then
+        pip3 install -r requirements.txt
+    elif command -v pip &> /dev/null; then
+        pip install -r requirements.txt
+    else
+        show_error "Pip не найден!"
+        return 1
+    fi
     
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}All dependencies installed successfully!${NC}"
+        echo -e "${GREEN}Все зависимости успешно установлены!${NC}"
         return 0
     else
-        show_error "Failed to install some dependencies"
+        show_error "Не удалось установить некоторые зависимости"
         return 1
     fi
 }
@@ -90,27 +79,6 @@ else:
     print('.')
 "
     fi
-}
-
-# Функция для установки префикса в базу данных
-set_prefix_in_db() {
-    db_path="cash/config.db"
-    new_prefix="$1"
-    
-    # Создаем папку cash если её нет
-    mkdir -p cash
-    
-    python -c "
-import sqlite3
-conn = sqlite3.connect('$db_path')
-c = conn.cursor()
-c.execute('''CREATE TABLE IF NOT EXISTS global_config (
-             key TEXT PRIMARY KEY,
-             value TEXT)''')
-c.execute(\"INSERT OR REPLACE INTO global_config (key, value) VALUES ('command_prefix', ?)\", ('$new_prefix',))
-conn.commit()
-conn.close()
-"
 }
 
 # Функция для получения текущего статуса автоклинера
@@ -176,26 +144,26 @@ change_prefix() {
     while true; do
         clear
         show_header
-        echo -e "${CYAN}CONFIGURE COMMAND PREFIX${NC}"
+        echo -e "${CYAN}НАСТРОЙКА ПРЕФИКСА КОМАНД${NC}"
         current_prefix=$(get_current_prefix)
-        echo "Current prefix: '$current_prefix'"
+        echo "Текущий префикс: '$current_prefix'"
         echo
-        echo "Enter new prefix (or '0' to go back):"
-        read -p "Enter: " new_prefix
+        echo "Введите новый префикс (или '0' для возврата):"
+        read -p "Ввод: " new_prefix
         
         if [ "$new_prefix" = "0" ]; then
             return
         elif [ -z "$new_prefix" ]; then
-            show_error "Prefix cannot be empty"
+            show_error "Префикс не может быть пустым"
         else
             # Устанавливаем префикс в базу данных
             set_config_in_db "command_prefix" "$new_prefix"
             if [ $? -eq 0 ]; then
-                echo -e "${GREEN}Prefix updated successfully!${NC}"
+                echo -e "${GREEN}Префикс успешно обновлен!${NC}"
                 sleep 1
                 return
             else
-                show_error "Failed to update prefix"
+                show_error "Не удалось обновить префикс"
             fi
         fi
     done
@@ -206,21 +174,21 @@ change_autoclean_time() {
     while true; do
         clear
         show_header
-        echo -e "${CYAN}CONFIGURE AUTOCLEAN TIME${NC}"
+        echo -e "${CYAN}НАСТРОЙКА ВРЕМЕНИ АВТООЧИСТКИ${NC}"
         current_time=$(get_current_autoclean_time)
-        echo "Current autoclean time: $current_time seconds"
+        echo "Текущее время автоочистки: $current_time секунд"
         echo
-        echo "Enter new time in seconds (or '0' to go back):"
-        read -p "Enter: " new_time
+        echo "Введите новое время в секундах (или '0' для возврата):"
+        read -p "Ввод: " new_time
         
         if [ "$new_time" = "0" ]; then
             return
         elif ! [[ "$new_time" =~ ^[0-9]+$ ]]; then
-            show_error "Please enter a valid number"
+            show_error "Пожалуйста, введите корректное число"
         else
             # Устанавливаем новое время в базу данных
             set_config_in_db "autoclean_delay" "$new_time"
-            echo -e "${GREEN}Autoclean time updated successfully!${NC}"
+            echo -e "${GREEN}Время автоочистки успешно обновлено!${NC}"
             sleep 1
             return
         fi
@@ -232,28 +200,28 @@ toggle_autoclean() {
     while true; do
         clear
         show_header
-        echo -e "${CYAN}CONFIGURE AUTOCLEANER${NC}"
+        echo -e "${CYAN}НАСТРОЙКА АВТООЧИСТКИ${NC}"
         current_status=$(get_current_autoclean_status)
-        echo "Current status: $current_status"
+        echo "Текущий статус: $current_status"
         echo
-        echo "Select option:"
-        echo "1. Enable autocleaner"
-        echo "2. Disable autocleaner"
-        echo "0. Go back"
-        read -p "Enter: " choice
+        echo "Выберите опцию:"
+        echo "1. Включить автоочистку"
+        echo "2. Выключить автоочистку"
+        echo "0. Назад"
+        read -p "Ввод: " choice
         
         case $choice in
             1)
                 # Включаем автоклинер
                 set_config_in_db "autoclean_enabled" "True"
-                echo -e "${GREEN}Autocleaner enabled!${NC}"
+                echo -e "${GREEN}Автоочистка включена!${NC}"
                 sleep 1
                 return
                 ;;
             2)
                 # Выключаем автоклинер
                 set_config_in_db "autoclean_enabled" "False"
-                echo -e "${GREEN}Autocleaner disabled!${NC}"
+                echo -e "${GREEN}Автоочистка выключена!${NC}"
                 sleep 1
                 return
                 ;;
@@ -261,7 +229,7 @@ toggle_autoclean() {
                 return
                 ;;
             *)
-                show_error "Invalid option"
+                show_error "Неверная опция"
                 ;;
         esac
     done
@@ -272,19 +240,19 @@ configure_autostart() {
     while true; do
         clear
         show_header
-        echo -e "${CYAN}CONFIGURE AUTOSTART${NC}"
+        echo -e "${CYAN}НАСТРОЙКА АВТОЗАПУСКА${NC}"
         if grep -q "cd $(pwd) && python main.py" ~/.bashrc; then
-            autostart_setting="YES"
+            autostart_setting="ВКЛЮЧЕН"
         else
-            autostart_setting="NO"
+            autostart_setting="ВЫКЛЮЧЕН"
         fi
-        echo "Current setting: $autostart_setting"
+        echo "Текущая настройка: $autostart_setting"
         echo
-        echo "Select option:"
-        echo "1. Enable autostart"
-        echo "2. Disable autostart"
-        echo "0. Go back"
-        read -p "Enter: " choice
+        echo "Выберите опцию:"
+        echo "1. Включить автозапуск"
+        echo "2. Выключить автозапуск"
+        echo "0. Назад"
+        read -p "Ввод: " choice
         
         case $choice in
             1)
@@ -292,14 +260,14 @@ configure_autostart() {
                 if ! grep -q "cd $(pwd) && python main.py" ~/.bashrc; then
                     echo "cd $(pwd) && python main.py" >> ~/.bashrc
                 fi
-                echo -e "${GREEN}Autostart enabled!${NC}"
+                echo -e "${GREEN}Автозапуск включен!${NC}"
                 sleep 1
                 return
                 ;;
             2)
                 # Выключаем автозапуск
                 sed -i '/python main.py/d' ~/.bashrc
-                echo -e "${GREEN}Autostart disabled!${NC}"
+                echo -e "${GREEN}Автозапуск выключен!${NC}"
                 sleep 1
                 return
                 ;;
@@ -307,7 +275,7 @@ configure_autostart() {
                 return
                 ;;
             *)
-                show_error "Invalid option"
+                show_error "Неверная опция"
                 ;;
         esac
     done
@@ -318,7 +286,7 @@ show_settings_menu() {
     while true; do
         clear
         show_header
-        echo -e "${CYAN}MAIN SETTINGS MENU${NC}"
+        echo -e "${CYAN}ГЛАВНОЕ МЕНЮ НАСТРОЕК${NC}"
         echo
         
         # Получаем текущие настройки
@@ -327,19 +295,18 @@ show_settings_menu() {
         current_status=$(get_current_autoclean_status)
         
         if grep -q "cd $(pwd) && python main.py" ~/.bashrc; then
-            autostart_setting="YES"
+            autostart_setting="ВКЛЮЧЕН"
         else
-            autostart_setting="NO"
+            autostart_setting="ВЫКЛЮЧЕН"
         fi
         
-        echo "1. Prefix - '$current_prefix'"
-        echo "2. Autocleaner - ${current_time}s (Status: $current_status)"
-        echo "3. Inline - Unavailable"
-        echo "4. Auto-start - $autostart_setting"
-        echo "5. Start bot with current settings"
-        echo "0. Exit"
+        echo "1. Префикс - '$current_prefix'"
+        echo "2. Автоочистка - ${current_time}сек (Статус: $current_status)"
+        echo "3. Автозапуск - $autostart_setting"
+        echo "4. Запустить Huekka"
+        echo "0. Выход"
         echo
-        read -p "Enter: " choice
+        read -p "Ввод: " choice
         
         case $choice in
             1)
@@ -348,11 +315,11 @@ show_settings_menu() {
             2)
                 clear
                 show_header
-                echo -e "${CYAN}AUTOCLEANER SETTINGS${NC}"
-                echo "1. Change autoclean time"
-                echo "2. Toggle autocleaner (enable/disable)"
-                echo "0. Go back"
-                read -p "Enter: " subchoice
+                echo -e "${CYAN}НАСТРОЙКИ АВТООЧИСТКИ${NC}"
+                echo "1. Изменить время автоочистки"
+                echo "2. Переключить автоочистку (вкл/выкл)"
+                echo "0. Назад"
+                read -p "Ввод: " subchoice
                 
                 case $subchoice in
                     1)
@@ -364,33 +331,24 @@ show_settings_menu() {
                     0)
                         ;;
                     *)
-                        show_error "Invalid option"
+                        show_error "Неверная опция"
                         ;;
                 esac
                 ;;
             3)
-                clear
-                show_header
-                echo -e "${CYAN}INLINE MODULE${NC}"
-                echo "The inline module is temporarily unavailable"
-                echo
-                echo "Press any key to continue..."
-                read -n 1
-                ;;
-            4)
                 configure_autostart
                 ;;
-            5)
-                echo -e "${GREEN}Starting bot...${NC}"
+            4)
+                echo -e "${GREEN}Запуск Huekka...${NC}"
                 python main.py
                 exit 0
                 ;;
             0)
-                echo -e "${GREEN}Goodbye!${NC}"
+                echo -e "${GREEN}До свидания!${NC}"
                 exit 0
                 ;;
             *)
-                show_error "Invalid option"
+                show_error "Неверная опция"
                 ;;
         esac
     done
@@ -399,39 +357,42 @@ show_settings_menu() {
 # Основная логика скрипта
 main() {
     show_header
-    echo -e "${PURPLE}Select installation type:${NC}"
-    echo -e "${CYAN}1. Default settings${NC}"
-    echo -e "${CYAN}2. Custom settings${NC}"
+    echo -e "${PURPLE}Выберите тип установки:${NC}"
+    echo -e "${CYAN}1. Стандартные настройки${NC}"
+    echo -e "${CYAN}2. Пользовательские настройки${NC}"
     echo
-    read -p "Enter: " choice
+    read -p "Ввод: " choice
     
     case $choice in
         1)
-            echo -e "${GREEN}Starting with default settings...${NC}"
+            echo -e "${GREEN}Запуск со стандартными настройками...${NC}"
             python main.py
             ;;
         2)
             show_settings_menu
             ;;
         *)
-            show_error "Invalid option"
+            show_error "Неверная опция"
             main
             ;;
     esac
 }
 
-# Начало выполнения скрипта
-clear
-show_header
-
-# Проверяем и устанавливаем необходимые пакеты
-install_required_packages
-
-# Устанавливаем зависимости
-if install_python_dependencies; then
-    # Запускаем основную функцию
-    main
+# Обработка аргумента командной строки
+if [ "$1" = "sitting" ]; then
+    # Прямой запуск меню настроек
+    show_settings_menu
 else
-    show_error "Failed to install dependencies. Please check your internet connection and try again."
-    exit 1
+    # Начало выполнения скрипта
+    clear
+    show_header
+    
+    # Устанавливаем зависимости
+    if install_python_dependencies; then
+        # Запускаем основную функцию
+        main
+    else
+        show_error "Не удалось установить зависимости. Проверьте подключение к интернету и попробуйте снова."
+        exit 1
+    fi
 fi

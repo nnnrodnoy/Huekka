@@ -147,6 +147,19 @@ class UserBot:
             logger.error(f"Ошибка загрузки настройки {key}: {str(e)}")
             return default
 
+    def set_config_in_db(self, key, value):
+        db_path = Path("cash") / "config.db"
+        os.makedirs("cash", exist_ok=True)
+        
+        conn = sqlite3.connect(db_path)
+        c = conn.cursor()
+        c.execute('''CREATE TABLE IF NOT EXISTS global_config (
+                     key TEXT PRIMARY KEY,
+                     value TEXT)''')
+        c.execute("INSERT OR REPLACE INTO global_config (key, value) VALUES (?, ?)", (key, value))
+        conn.commit()
+        conn.close()
+
     def _init_client(self):
         session_path = Path("session") / "Huekka.session"
         if not session_path.exists():
@@ -194,7 +207,7 @@ class UserBot:
         print(f"\n{Colors.LIGHT_BLUE}[+] Welcome Huekka userbot !{Colors.ENDC}")
         print(f"{Colors.LIGHT_BLUE}[+] Usage {self.command_prefix}help to view commands{Colors.ENDC}")
         print(f"{Colors.LIGHT_BLUE}[+] Subscribe to @BotHuekka telegram{Colors.ENDC}")
-        print(f"{Colors.LIGHT_BLUE}[+] Usege .sitting to change the bot settings{Colors.ENDC}\n")
+        print(f"{Colors.LIGHT_BLUE}[+] Use './installer.sh sitting' to change the bot settings{Colors.ENDC}\n")
         
         @self.client.on(events.NewMessage(outgoing=True))
         async def command_handler(event):

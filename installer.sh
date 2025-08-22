@@ -12,7 +12,7 @@ NC='\033[0m' # No Color
 show_header() {
     echo -e "${PURPLE}"
     echo "╔══════════════════════════════════════════════════════╗"
-    echo "║                 HUEKKA USERBOT INSTALLER            ║"
+    echo "║                 HUEKKA USERBOT INSTALLER             ║"
     echo "╚══════════════════════════════════════════════════════╝"
     echo -e "${NC}"
 }

@@ -250,10 +250,10 @@ async def setup_session():
     
     show_welcome()
 
-    print(f"{Colors.LIGHT_BLUE}вАҐ 1. Go to {Colors.BOLD}https://my.telegram.org/apps{Colors.ENDC}{Colors.LIGHT_BLUE} and login.{Colors.ENDC}")
-    print(f"{Colors.LIGHT_BLUE}вАҐ 2. Click to {Colors.BOLD}API Development tools{Colors.ENDC}{Colors.LIGHT_BLUE}{Colors.ENDC}")
-    print(f"{Colors.LIGHT_BLUE}вАҐ 3. Create new application by entering the required details{Colors.ENDC}")
-    print(f"{Colors.LIGHT_BLUE}вАҐ 4. Copy {Colors.BOLD}API ID{Colors.ENDC}{Colors.LIGHT_BLUE} and {Colors.BOLD}API HASH{Colors.ENDC}{Colors.LIGHT_BLUE}\n{Colors.ENDC}")
+    print(f"{Colors.LIGHT_BLUE} 1. Go to {Colors.BOLD}https://my.telegram.org/apps{Colors.ENDC}{Colors.LIGHT_BLUE} and login.{Colors.ENDC}")
+    print(f"{Colors.LIGHT_BLUE} 2. Click to {Colors.BOLD}API Development tools{Colors.ENDC}{Colors.LIGHT_BLUE}{Colors.ENDC}")
+    print(f"{Colors.LIGHT_BLUE} 3. Create new application by entering the required details{Colors.ENDC}")
+    print(f"{Colors.LIGHT_BLUE} 4. Copy {Colors.BOLD}API ID{Colors.ENDC}{Colors.LIGHT_BLUE} and {Colors.BOLD}API HASH{Colors.ENDC}{Colors.LIGHT_BLUE}\n{Colors.ENDC}")
 
     while True:
         api_id = input(f"{Colors.DARK_VIOLET}Enter API ID: {Colors.ENDC}").strip()

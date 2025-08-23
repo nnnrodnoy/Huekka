@@ -3,7 +3,6 @@ import sys
 import importlib
 import asyncio
 import logging
-import sqlite3
 import difflib
 from pathlib import Path
 from telethon import events, types
@@ -44,10 +43,6 @@ class LoaderModule:
         )
         
         bot.set_module_description("Loader", "Динамическая загрузка модулей")
-        
-        # Подключаемся к базе смайликов
-        self.smile_db_path = Path("cash") / "smiles.db"
-        self._init_smile_database()
 
     def get_module_info(self):
         return {
@@ -67,27 +62,9 @@ class LoaderModule:
             ]
         }
 
-    def _init_smile_database(self):
-        """Инициализация базы смайлов (если не существует)"""
-        os.makedirs("cash", exist_ok=True)
-        conn = sqlite3.connect(self.smile_db_path)
-        c = conn.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS smiles
-                     (id INTEGER PRIMARY KEY, smile TEXT)''')
-        if c.execute("SELECT COUNT(*) FROM smiles").fetchone()[0] == 0:
-            for smile in BotConfig.DEFAULT_SMILES:
-                c.execute("INSERT INTO smiles (smile) VALUES (?)", (smile,))
-            conn.commit()
-        conn.close()
-
     def get_random_smile(self):
-        """Получение случайного смайла"""
-        conn = sqlite3.connect(self.smile_db_path)
-        smile = conn.cursor().execute(
-            "SELECT smile FROM smiles ORDER BY RANDOM() LIMIT 1"
-        ).fetchone()[0]
-        conn.close()
-        return smile
+        """Получение случайного смайла через DatabaseManager"""
+        return self.bot.db.get_random_smile()
 
     async def get_user_info(self, event):
         """Получение информации о пользователе с кэшированием"""
@@ -327,6 +304,14 @@ class LoaderModule:
             after_commands = set(self.bot.commands.keys())
             new_commands = after_commands - before_commands
             
+            # Сохраняем информацию о модуле в базу данных
+            module_settings = {
+                "loaded_at": int(time.time()),
+                "commands_count": len(new_commands),
+                "file_name": file_name
+            }
+            self.bot.db.set_module_settings(module_name, module_settings)
+            
             found_name, module_info = await self.find_module_info(module_name)
             
             elapsed = time.time() - start_time
@@ -436,6 +421,14 @@ class LoaderModule:
             
             if found_name in self.bot.module_descriptions:
                 del self.bot.module_descriptions[found_name]
+            
+            # Удаляем настройки модуля из базы данных
+            self.bot.db.execute_query(
+                "modules.db",
+                "DELETE FROM modules WHERE name = ?",
+                (found_name,),
+                commit=True
+            )
             
             elapsed = time.time() - start_time
             if elapsed < self.min_animation_time:

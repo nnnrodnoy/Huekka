@@ -1,11 +1,8 @@
 import logging
 import difflib
-import random
-import sqlite3
 import os
 import sys
 from telethon import events
-from pathlib import Path
 from config import BotConfig
 
 logger = logging.getLogger("UserBot.Help")
@@ -21,9 +18,6 @@ class HelpModule:
         self.custom_emoji_id = BotConfig.EMOJI_IDS["custom"]
         self.developer_emoji_id = BotConfig.EMOJI_IDS["dev"]
         self.command_emoji_id = BotConfig.EMOJI_IDS["command"]
-        
-        self.smile_db_path = Path("cash") / "smiles.db"
-        self._init_smile_database()
         
         bot.register_command(
             cmd="help",
@@ -46,24 +40,9 @@ class HelpModule:
             ]
         }
     
-    def _init_smile_database(self):
-        os.makedirs("cash", exist_ok=True)
-        conn = sqlite3.connect(self.smile_db_path)
-        c = conn.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS smiles
-                     (id INTEGER PRIMARY KEY, smile TEXT)''')
-        if c.execute("SELECT COUNT(*) FROM smiles").fetchone()[0] == 0:
-            smiles = BotConfig.DEFAULT_SMILES
-            for smile in smiles:
-                c.execute("INSERT INTO smiles (smile) VALUES (?)", (smile,))
-            conn.commit()
-        conn.close()
-    
     def get_random_smile(self):
-        conn = sqlite3.connect(self.smile_db_path)
-        smile = conn.cursor().execute("SELECT smile FROM smiles ORDER BY RANDOM() LIMIT 1").fetchone()[0]
-        conn.close()
-        return smile
+        """Получение случайного смайла через DatabaseManager"""
+        return self.bot.db.get_random_smile()
 
     async def get_module_info(self, module_name):
         if module_name not in self.bot.modules:
@@ -72,10 +51,19 @@ class HelpModule:
         try:
             module = sys.modules.get(module_name)
             if module and hasattr(module, 'get_module_info'):
-                return module.get_module_info()
+                info = module.get_module_info()
+                
+                # Добавляем информацию из базы данных
+                db_info = self.bot.db.get_module_settings(module_name)
+                if db_info and "load_count" in db_info:
+                    info["load_count"] = db_info.get("load_count", 0)
+                    info["last_loaded"] = db_info.get("last_loaded", 0)
+                
+                return info
         except Exception:
             pass
         
+        # Формируем информацию по умолчанию
         commands = []
         for cmd, data in self.bot.modules[module_name].items():
             commands.append({
@@ -83,13 +71,20 @@ class HelpModule:
                 "description": data.get("description", "Без описания")
             })
         
+        # Добавляем информацию из базы данных
+        db_info = self.bot.db.get_module_settings(module_name)
+        load_count = db_info.get("load_count", 1) if db_info else 1
+        last_loaded = db_info.get("last_loaded", 0) if db_info else 0
+        
         return {
             "name": module_name,
             "description": self.bot.module_descriptions.get(module_name, ""),
             "commands": commands,
             "is_stock": module_name in self.stock_modules,
             "version": "1.0.0",
-            "developer": "@BotHuekka"
+            "developer": "@BotHuekka",
+            "load_count": load_count,
+            "last_loaded": last_loaded
         }
 
     async def get_command_info(self, command_name):
@@ -142,6 +137,10 @@ class HelpModule:
                 text += f"__{self.get_random_smile()}__\n\n"
                 
                 text += f"{module_info['description']}\n\n"
+                
+                # Добавляем статистику загрузок, если доступна
+                if "load_count" in module_info:
+                    text += f"**Загружено раз:** {module_info['load_count']}\n\n"
                 
                 found = False
                 for cmd in module_info['commands']:
@@ -203,6 +202,10 @@ class HelpModule:
                 text += f"__{self.get_random_smile()}__\n\n"
                 
                 text += f"{module_info['description']}\n\n"
+                
+                # Добавляем статистику загрузок, если доступна
+                if "load_count" in module_info:
+                    text += f"**Загружено раз:** {module_info['load_count']}\n\n"
                 
                 for cmd in module_info['commands']:
                     if is_premium:

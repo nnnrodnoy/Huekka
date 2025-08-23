@@ -291,7 +291,7 @@ class UserBot:
                         
                         logger.debug(f"Модуль {module_name} загружен (команд: {after - before})")
                 except Exception as e:
-                    error_msg = f"Ошибка загрузки модуля {file}: {str(e)}")
+                    error_msg = f"Ошибка загрузки модуля {file}: {str(e)}"
                     logger.error(error_msg)
 
     def register_command(self, cmd, handler, description="", module_name="System"):

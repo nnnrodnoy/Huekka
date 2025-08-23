@@ -1,10 +1,8 @@
-import os
-import sqlite3
+# autocleaner.py
 import asyncio
 import time
 import logging
 import re
-from pathlib import Path
 from telethon import events
 from telethon.errors import RPCError
 from config import BotConfig
@@ -14,7 +12,6 @@ logger = logging.getLogger("UserBot.AutoCleaner")
 class AutoCleaner:
     def __init__(self, bot, enabled=None, delay=None):
         self.bot = bot
-        self.db_path = Path("cash") / "autoclean.db"
         
         # Используем переданные настройки или загружаем из конфига
         self.enabled = enabled if enabled is not None else BotConfig.AUTOCLEAN["enabled"]
@@ -30,7 +27,6 @@ class AutoCleaner:
             for pattern in self.tracked_commands
         ]
         
-        self._init_db()
         self.cleanup_task = None
         self.is_running = False
         
@@ -39,33 +35,6 @@ class AutoCleaner:
         async def outgoing_handler(event):
             if self.enabled and (event.is_channel or event.is_group or event.is_private):
                 await self.process_message(event)
-
-    def _init_db(self):
-        """Инициализация базы данных для автоочистки"""
-        os.makedirs("cash", exist_ok=True)
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            
-            # Создаем таблицу, если она не существует
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS autoclean_queue (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    chat_id INTEGER NOT NULL,
-                    message_id INTEGER NOT NULL,
-                    delete_at REAL NOT NULL,
-                    attempts INTEGER DEFAULT 0
-                )
-            ''')
-            
-            # Проверяем наличие колонки attempts и добавляем ее, если отсутствует
-            cursor.execute("PRAGMA table_info(autoclean_queue)")
-            columns = [column[1] for column in cursor.fetchall()]
-            
-            if 'attempts' not in columns:
-                cursor.execute("ALTER TABLE autoclean_queue ADD COLUMN attempts INTEGER DEFAULT 0")
-                logger.info("Добавлена колонка attempts в таблицу autoclean_queue")
-            
-            conn.commit()
 
     async def start(self):
         """Запуск задачи автоочистки"""
@@ -97,16 +66,19 @@ class AutoCleaner:
 
     async def schedule_cleanup(self, message):
         """Добавление сообщения в очередь на удаление"""
-        delete_at = time.time() + self.default_delay
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "INSERT INTO autoclean_queue (chat_id, message_id, delete_at) VALUES (?, ?, ?)",
-                    (message.chat_id, message.id, delete_at)
-                )
-                conn.commit()
-            logger.info(f"Сообщение {message.id} в чате {message.chat_id} запланировано на удаление")
+            # Используем DatabaseManager для добавления в очередь
+            success = self.bot.db.add_to_autoclean(
+                message.chat_id, 
+                message.id, 
+                self.default_delay
+            )
+            
+            if success:
+                logger.info(f"Сообщение {message.id} в чате {message.chat_id} запланировано на удаление")
+            else:
+                logger.error(f"Ошибка планирования удаления сообщения {message.id}")
+                
         except Exception as e:
             logger.error(f"Ошибка планирования удаления: {str(e)}")
 
@@ -120,50 +92,39 @@ class AutoCleaner:
                     await asyncio.sleep(10)
                     continue
                 
-                current_time = time.time()
-                with sqlite3.connect(self.db_path) as conn:
-                    cursor = conn.cursor()
-                    cursor.execute(
-                        "SELECT id, chat_id, message_id, attempts FROM autoclean_queue WHERE delete_at <= ?",
-                        (current_time,)
-                    )
-                    messages = cursor.fetchall()
-                    
-                    if messages:
-                        logger.info(f"Найдено {len(messages)} сообщений для удаления")
-                    
-                    for msg_id, chat_id, message_id, attempts in messages:
-                        try:
-                            # Пытаемся удалить сообщение
-                            await self.bot.client.delete_messages(chat_id, message_id)
-                            logger.info(f"Сообщение {message_id} в чате {chat_id} удалено")
+                # Получаем сообщения, готовые к удалению
+                pending_messages = self.bot.db.get_pending_autoclean()
+                
+                if pending_messages:
+                    logger.info(f"Найдено {len(pending_messages)} сообщений для удаления")
+                
+                for msg_id, chat_id, message_id, attempts in pending_messages:
+                    try:
+                        # Пытаемся удалить сообщение
+                        await self.bot.client.delete_messages(chat_id, message_id)
+                        logger.info(f"Сообщение {message_id} в чате {chat_id} удалено")
+                        
+                        # Удаляем запись из очереди
+                        self.bot.db.remove_from_autoclean(msg_id)
+                        
+                    except RPCError as e:
+                        logger.warning(f"Ошибка RPC при удалении сообщения {message_id}: {str(e)}")
+                        
+                        # Увеличиваем счетчик попыток
+                        new_attempts = attempts + 1
+                        
+                        if new_attempts >= 5:  # Максимум 5 попыток
+                            logger.warning(f"Превышено максимальное количество попыток для сообщения {message_id}, удаляем из очереди")
+                            self.bot.db.remove_from_autoclean(msg_id)
+                        else:
+                            # Обновляем время удаления (через 1 минуту) и счетчик попыток
+                            new_delete_at = time.time() + 60
+                            self.bot.db.update_autoclean_attempt(msg_id, new_attempts, new_delete_at)
                             
-                            # Удаляем запись из очереди
-                            cursor.execute("DELETE FROM autoclean_queue WHERE id = ?", (msg_id,))
-                            
-                        except RPCError as e:
-                            logger.warning(f"Ошибка RPC при удалении сообщения {message_id}: {str(e)}")
-                            
-                            # Увеличиваем счетчик попыток
-                            new_attempts = attempts + 1
-                            
-                            if new_attempts >= 5:  # Максимум 5 попыток
-                                logger.warning(f"Превышено максимальное количество попыток для сообщения {message_id}, удаляем из очереди")
-                                cursor.execute("DELETE FROM autoclean_queue WHERE id = ?", (msg_id,))
-                            else:
-                                # Обновляем время удаления (через 1 минуту) и счетчик попыток
-                                new_delete_at = time.time() + 60
-                                cursor.execute(
-                                    "UPDATE autoclean_queue SET delete_at = ?, attempts = ? WHERE id = ?",
-                                    (new_delete_at, new_attempts, msg_id)
-                                )
-                                
-                        except Exception as e:
-                            logger.error(f"Неизвестная ошибка при удалении сообщения {message_id}: {str(e)}")
-                            # Удаляем запись из очереди при неизвестной ошибке
-                            cursor.execute("DELETE FROM autoclean_queue WHERE id = ?", (msg_id,))
-                    
-                    conn.commit()
+                    except Exception as e:
+                        logger.error(f"Неизвестная ошибка при удалении сообщения {message_id}: {str(e)}")
+                        # Удаляем запись из очереди при неизвестной ошибке
+                        self.bot.db.remove_from_autoclean(msg_id)
                     
             except Exception as e:
                 logger.error(f"Ошибка в cleanup_loop: {str(e)}")

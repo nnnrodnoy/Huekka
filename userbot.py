@@ -219,6 +219,11 @@ class UserBot:
         
         await self.load_modules()
         
+        # Запускаем автоклинер после загрузки модулей
+        if self.autocleaner.enabled:
+            await self.autocleaner.start()
+            logger.info("Автоклинер запущен")
+        
         for action in self.post_restart_actions:
             try:
                 await action()
@@ -347,9 +352,17 @@ class UserBot:
     
     async def restart(self):
         logger.info("Перезагрузка бота...")
+        # Останавливаем автоклинер перед перезагрузкой
+        if hasattr(self, 'autocleaner') and self.autocleaner.is_running:
+            await self.autocleaner.stop()
         os.execl(sys.executable, sys.executable, *sys.argv)
     
     async def stop(self):
+        # Останавливаем автоклинер
+        if hasattr(self, 'autocleaner') and self.autocleaner.is_running:
+            await self.autocleaner.stop()
+        
+        # Отключаем клиент
         if self.client and self.client.is_connected():
             await self.client.disconnect()
 

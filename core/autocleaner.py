@@ -45,6 +45,8 @@ class AutoCleaner:
         os.makedirs("cash", exist_ok=True)
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
+            
+            # Создаем таблицу, если она не существует
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS autoclean_queue (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,6 +56,15 @@ class AutoCleaner:
                     attempts INTEGER DEFAULT 0
                 )
             ''')
+            
+            # Проверяем наличие колонки attempts и добавляем ее, если отсутствует
+            cursor.execute("PRAGMA table_info(autoclean_queue)")
+            columns = [column[1] for column in cursor.fetchall()]
+            
+            if 'attempts' not in columns:
+                cursor.execute("ALTER TABLE autoclean_queue ADD COLUMN attempts INTEGER DEFAULT 0")
+                logger.info("Добавлена колонка attempts в таблицу autoclean_queue")
+            
             conn.commit()
 
     async def start(self):

@@ -7,6 +7,7 @@ import json
 import re
 from pathlib import Path
 from telethon import events
+from telethon.errors import MessageNotModifiedError
 from config import BotConfig
 
 logger = logging.getLogger("UserBot.System")
@@ -163,15 +164,21 @@ class SystemModule:
 
     async def cmd_online(self, event):
         """Обработчик команды .online"""
-        is_premium = await self.is_premium_user(event)
-        uptime = await self.format_time(time.time() - self.bot.start_time)
-        
-        if is_premium:
-            msg = await event.edit(f"[🕒](emoji/{self.clock_emoji_id}) **Время работы:** `{uptime}`")
-        else:
-            msg = await event.edit(f"🕒 **Время работы:** `{uptime}`")
-        
-        await self.add_to_autoclean(msg)
+        try:
+            is_premium = await self.is_premium_user(event)
+            uptime = await self.format_time(time.time() - self.bot.start_time)
+            
+            if is_premium:
+                msg = await event.edit(f"[🕒](emoji/{self.clock_emoji_id}) **Время работы:** `{uptime}`")
+            else:
+                msg = await event.edit(f"🕒 **Время работы:** `{uptime}`")
+            
+            await self.add_to_autoclean(msg)
+        except MessageNotModifiedError:
+            # Игнорируем ошибку, если сообщение не изменилось
+            pass
+        except Exception as e:
+            logger.error(f"Ошибка в команде .online: {str(e)}")
         
     def get_module_info(self):
         return {

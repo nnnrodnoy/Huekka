@@ -1,4 +1,4 @@
-import os
+юimport os
 import sys
 import time
 import asyncio
@@ -32,21 +32,7 @@ class SystemModule:
         )
         
         bot.register_command(
-            cmd="reboot",
-            handler=self.cmd_restart,
-            description="Перезагрузить бота",
-            module_name="System"
-        )
-        
-        bot.register_command(
             cmd="online",
-            handler=self.cmd_online,
-            description="Показать время работы бота",
-            module_name="System"
-        )
-        
-        bot.register_command(
-            cmd="uptime",
             handler=self.cmd_online,
             description="Показать время работы бота",
             module_name="System"
@@ -199,15 +185,7 @@ class SystemModule:
                     "description": "Перезагрузить бота"
                 },
                 {
-                    "command": "reboot",
-                    "description": "Перезагрузить бота"
-                },
-                {
                     "command": "online",
-                    "description": "Показать время работы бота"
-                },
-                {
-                    "command": "uptime",
                     "description": "Показать время работы бота"
                 }
             ]
@@ -225,15 +203,7 @@ def get_module_info():
                 "description": "Перезагрузить бота"
             },
             {
-                "command": "reboot",
-                "description": "Перезагрузить бота"
-            },
-            {
                 "command": "online",
-                "description": "Показать время работы бота"
-            },
-            {
-                "command": "uptime",
                 "description": "Показать время работы бота"
             }
         ]

@@ -23,6 +23,37 @@ class SystemModule:
         # Путь к файлу с информацией о перезагрузке
         self.restart_file = Path("cash") / "restart_info.json"
         
+        # Регистрируем команды через систему команд бота
+        bot.register_command(
+            cmd="restart",
+            handler=self.cmd_restart,
+            description="Перезагрузить бота",
+            module_name="System"
+        )
+        
+        bot.register_command(
+            cmd="reboot",
+            handler=self.cmd_restart,
+            description="Перезагрузить бота",
+            module_name="System"
+        )
+        
+        bot.register_command(
+            cmd="online",
+            handler=self.cmd_online,
+            description="Показать время работы бота",
+            module_name="System"
+        )
+        
+        bot.register_command(
+            cmd="uptime",
+            handler=self.cmd_online,
+            description="Показать время работы бота",
+            module_name="System"
+        )
+        
+        bot.set_module_description("System", "Системные команды бота")
+        
         # Проверяем, нужно ли отправить сообщение о завершении перезагрузки
         if self.restart_file.exists():
             try:
@@ -155,3 +186,58 @@ class SystemModule:
             msg = await event.edit(f"🕒 **Время работы:** `{uptime}`")
         
         await self.add_to_autoclean(msg)
+        
+    def get_module_info(self):
+        return {
+            "name": "System",
+            "description": "Системные команды бота",
+            "developer": "@BotHuekka",
+            "version": "1.0.0",
+            "commands": [
+                {
+                    "command": "restart",
+                    "description": "Перезагрузить бота"
+                },
+                {
+                    "command": "reboot",
+                    "description": "Перезагрузить бота"
+                },
+                {
+                    "command": "online",
+                    "description": "Показать время работы бота"
+                },
+                {
+                    "command": "uptime",
+                    "description": "Показать время работы бота"
+                }
+            ]
+        }
+
+def get_module_info():
+    return {
+        "name": "System",
+        "description": "Системные команды бота",
+        "developer": "@BotHuekka",
+        "version": "1.0.0",
+        "commands": [
+            {
+                "command": "restart",
+                "description": "Перезагрузить бота"
+            },
+            {
+                "command": "reboot",
+                "description": "Перезагрузить бота"
+            },
+            {
+                "command": "online",
+                "description": "Показать время работы бота"
+            },
+            {
+                "command": "uptime",
+                "description": "Показать время работы бота"
+            }
+        ]
+    }
+
+def setup(bot):
+    SystemModule(bot)

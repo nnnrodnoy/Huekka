@@ -1,5 +1,6 @@
+# config.py
 class BotConfig:
-    # Основные настройки ботаппппппппппппппппппппппппппппппппппппппп
+    # Основные настройки бота
     COMMAND_PREFIX = "."  # Префикс команд по умолчанию
     OWNER_ID = 0          # ID владельца бота
     LOG_LEVEL = "INFO"    # Уровень логирования
@@ -8,11 +9,11 @@ class BotConfig:
     
     # Список основных модулей ядра
     CORE_MODULES = ["Help", "System", "Loader", "Updater", "Configurator", 
-                    "AutoCleaner", "LimiterTest"]
+                    "AutoCleaner", "LimiterTest", "Database"]
     
     # Список стандартных модулей для help
     STOCK_MODULES = ["Help", "System", "Loader", "Updater", "Configurator", 
-                     "AutoCleaner"]
+                     "AutoCleaner", "Database"]
     
     # Настройки APILimiter
     API_LIMITER = {

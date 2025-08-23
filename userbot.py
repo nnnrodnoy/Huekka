@@ -207,7 +207,7 @@ class UserBot:
         print(f"\n{Colors.LIGHT_BLUE}[+] Welcome Huekka userbot !{Colors.ENDC}")
         print(f"{Colors.LIGHT_BLUE}[+] Usage {self.command_prefix}help to view commands{Colors.ENDC}")
         print(f"{Colors.LIGHT_BLUE}[+] Subscribe to @BotHuekka telegram{Colors.ENDC}")
-        print(f"{Colors.LIGHT_BLUE}[+] Use './installer.sh sitting' to change the bot settings{Colors.ENDC}\n")
+        print(f"{Colors.LIGHT_BLUE}[+] Use '.sitting' to change the bot settings{Colors.ENDC}\n")
         
         @self.client.on(events.NewMessage(outgoing=True))
         async def command_handler(event):

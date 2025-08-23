@@ -1,11 +1,10 @@
+# userbot.py
 import os
 import sys
 import asyncio
 import logging
 import json
 import time
-import sqlite3
-import base64
 import importlib.util
 import re
 import inspect
@@ -22,6 +21,7 @@ from config import BotConfig
 from core.autocleaner import AutoCleaner
 from core.apilimiter import APILimiter
 from core.system import SystemModule
+from core.database import DatabaseManager
 
 logger = setup_logging()
 logger = logging.getLogger("UserBot")
@@ -88,64 +88,28 @@ class UserBot:
         
         os.makedirs(self.cache_dir, exist_ok=True)
         os.makedirs("modules", exist_ok=True)
+        
+        # Инициализация менеджера баз данных
+        self.db = DatabaseManager()
+        
         self._init_client()
         
         self.command_prefix = self._load_prefix_from_db()
         
         # Загружаем настройки автоклинера из базы данных
-        autoclean_enabled = self.get_config_value('autoclean_enabled', 
-                                                 str(BotConfig.AUTOCLEAN["enabled"])).lower() == 'true'
-        autoclean_delay = int(self.get_config_value('autoclean_delay', 
-                                                  BotConfig.AUTOCLEAN["default_delay"]))
+        autoclean_enabled = self.db.get_config_value('autoclean_enabled', 
+                                                   str(BotConfig.AUTOCLEAN["enabled"])).lower() == 'true'
+        autoclean_delay = int(self.db.get_config_value('autoclean_delay', 
+                                                    BotConfig.AUTOCLEAN["default_delay"]))
         
         self.autocleaner = AutoCleaner(self, enabled=autoclean_enabled, delay=autoclean_delay)
         self.apilimiter = APILimiter(self)
         self.system_module = SystemModule(self)
     
     def _load_prefix_from_db(self):
-        db_path = Path("cash") / "config.db"
-        if not db_path.exists():
-            # Если базы нет, создаем ее с значением по умолчанию
-            os.makedirs("cash", exist_ok=True)
-            conn = sqlite3.connect(db_path)
-            c = conn.cursor()
-            c.execute('''CREATE TABLE IF NOT EXISTS global_config (
-                         key TEXT PRIMARY KEY,
-                         value TEXT)''')
-            c.execute("INSERT OR IGNORE INTO global_config (key, value) VALUES ('command_prefix', ?)",
-                     (self.config.COMMAND_PREFIX,))
-            conn.commit()
-            conn.close()
-            return self.config.COMMAND_PREFIX
-        
-        try:
-            conn = sqlite3.connect(db_path)
-            c = conn.cursor()
-            c.execute("SELECT value FROM global_config WHERE key='command_prefix'")
-            result = c.fetchone()
-            conn.close()
-            
-            return result[0] if result else self.config.COMMAND_PREFIX
-        except Exception as e:
-            logger.error(f"Ошибка загрузки префикса: {str(e)}")
-            return self.config.COMMAND_PREFIX
-    
-    def get_config_value(self, key, default=None):
-        db_path = Path("cash") / "config.db"
-        if not db_path.exists():
-            return default
-        
-        try:
-            conn = sqlite3.connect(db_path)
-            c = conn.cursor()
-            c.execute("SELECT value FROM global_config WHERE key=?", (key,))
-            result = c.fetchone()
-            conn.close()
-            
-            return result[0] if result else default
-        except Exception as e:
-            logger.error(f"Ошибка загрузки настройки {key}: {str(e)}")
-            return default
+        """Загрузка префикса команд из базы данных"""
+        prefix = self.db.get_config_value('command_prefix', self.config.COMMAND_PREFIX)
+        return prefix
 
     def _init_client(self):
         session_path = Path("session") / "Huekka.session"
@@ -222,7 +186,7 @@ class UserBot:
         # Запускаем автоклинер после загрузки модулей
         if self.autocleaner.enabled:
             await self.autocleaner.start()
-            logger.info("Автоклинер запущен")
+            logger.info("Автоочистка запущена")
         
         for action in self.post_restart_actions:
             try:
@@ -327,7 +291,7 @@ class UserBot:
                         
                         logger.debug(f"Модуль {module_name} загружен (команд: {after - before})")
                 except Exception as e:
-                    error_msg = f"Ошибка загрузки модуля {file}: {str(e)}"
+                    error_msg = f"Ошибка загрузки модуля {file}: {str(e)}")
                     logger.error(error_msg)
 
     def register_command(self, cmd, handler, description="", module_name="System"):

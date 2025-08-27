@@ -1,3 +1,9 @@
+# ©️ nnnrodnoy, 2025
+# 💬 @nnnrodnoy
+# This file is part of Huekka
+# 🌐 https://github.com/stepka5/Huekka
+# You can redistribute it and/or modify it under the terms of the MIT License
+# 🔑 https://opensource.org/licenses/MIT
 import os
 import sys
 import re
@@ -185,7 +191,7 @@ class SessionManager:
 
 def print_mishka_art():
     """Выводит ASCII арт мишки из файла с обработкой цветов и символов"""
-    art_path = Path("cash") / "mishka.txt"
+    art_path = Path("data") / "mishka.txt"
     
     if not art_path.exists():
         return False

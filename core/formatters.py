@@ -135,8 +135,8 @@ class HelpFormatters:
         if is_premium:
             text += f"[🕒](emoji/{total_emoji_id}) "
         text += f"**{module_info['name']} (v{module_info['version']})**\n"
-        text += f"__{module_info['description']}__\n\n"
-        text += f"**{random_smile}**\n" 
+        text += f"__{module_info['description']}__\n"
+        text += f"**{random_smile}**\n\n" 
                               
         for cmd in module_info['commands']:
             if is_premium:

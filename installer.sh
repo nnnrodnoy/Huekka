@@ -1,6 +1,9 @@
-#!/bin/bash
-
-# Цвета для вывода
+# ©️ nnnrodnoy, 2025
+# 💬 @nnnrodnoy
+# This file is part of Huekka
+# 🌐 https://github.com/stepka5/Huekka
+# You can redistribute it and/or modify it under the terms of the MIT License
+# 🔑 https://opensource.org/licenses/MIT
 PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 GREEN='\033[0;32m'

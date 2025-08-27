@@ -1,4 +1,3 @@
-11111111111111111111111111111111111111111111111333
 [size=9px][font=monospace][color=#808080] [/color]
 [color=#808080]                  [/color][color=#795337]▓[/color][color=#7e4f2c]▓[/color][color=#7b4e2c]▓▓▓▓▓▓▓[/color][color=#7c6e64]∩[/color]
 [color=#808080]               [/color][color=#6d503c]▓[/color][color=#724c31]▓[/color][color=#724c31]▓[/color][color=#8f552b]▓[/color][color=#8d684d]▒[/color][color=#896f5c]▒[/color][color=#925e39]▀[/color][color=#8d6a52]▒[/color][color=#915830]▓[/color][color=#8d674d]▒[/color][color=#8b6f5c]▒[/color][color=#8d5731]▓[/color][color=#764e30]▓[/color][color=#734d31]▓[/color][color=#6b4c36]▓[/color][color=#786e66]∩                         [/color][color=#424241]▓[/color][color=#161513]█[/color][color=#161513]████[/color][color=#5d5d5c]Ü[/color]

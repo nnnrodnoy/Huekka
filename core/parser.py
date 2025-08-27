@@ -1,3 +1,9 @@
+# ©️ nnnrodnoy, 2025
+# 💬 @nnnrodnoy
+# This file is part of Huekka
+# 🌐 https://github.com/stepka5/Huekka
+# You can redistribute it and/or modify it under the terms of the MIT License
+# 🔑 https://opensource.org/licenses/MIT
 import logging
 import re
 from telethon import types
@@ -12,14 +18,11 @@ class CustomParseMode:
         pass
 
     def parse(self, text):
-        # Преобразуем HTML-эмодзи в Markdown-формат
         text = self._convert_html_emoji_to_markdown(text)
         
-        # Парсим Markdown
         text, entities = markdown.parse(text)
         new_entities = []
         
-        # Обрабатываем сущности
         for entity in entities:
             if isinstance(entity, types.MessageEntityTextUrl):
                 if entity.url == 'spoiler':
@@ -79,18 +82,14 @@ class EmojiHandler:
     @staticmethod
     async def process_message(event):
         try:
-            # Пропускаем команды и сообщения без текста
             if not event.text or event.text.startswith('.'):
                 return
                 
-            # Проверяем наличие эмодзи в любом формате
             if '](emoji/' not in event.text and '<emoji' not in event.text:
                 return
                 
-            # Редактируем сообщение для активации парсера
             await event.edit(event.text)
         except MessageNotModifiedError:
-            # Игнорируем ошибку, если сообщение не изменилось
             pass
         except Exception as e:
             logger.error(f"Ошибка обработки эмодзи: {str(e)}", exc_info=True)

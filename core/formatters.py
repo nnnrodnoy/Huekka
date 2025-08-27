@@ -95,8 +95,8 @@ class MessageFormatters:
     def error(message: str, details: str = "") -> str:
         """Форматирование сообщения об ошибке"""
         if details:
-            return f"🚫 **Ошибка:** {message}\n```{details}```"
-        return f"🚫 **Ошибка:** {message}"
+            return f"[🚫](emoji/5240241223632954241) **Ошибка:** {message}\n```{details}```"
+        return f"[🚫](emoji/5240241223632954241) **Ошибка:** {message}"
     
     @staticmethod
     def warning(message: str) -> str:
@@ -106,22 +106,22 @@ class MessageFormatters:
     @staticmethod
     def success(message: str) -> str:
         """Форматирование успешного выполнения"""
-        return f"✅ **Успех:** {message}"
+        return f"[✅](emoji/5206607081334906820) **Успех:** {message}"
     
     @staticmethod
     def info(message: str) -> str:
         """Форматирование информационного сообщения"""
-        return f"ℹ️ **Информация:** {message}"
+        return f"[ℹ️](emoji/5422439311196834318) **Информация:** {message}"
     
     @staticmethod
     def question(message: str) -> str:
         """Форматирование вопроса"""
-        return f"❓ **Вопрос:** {message}"
+        return f"[❓](emoji/5436113877181941026) **Вопрос:** {message}"
     
     @staticmethod
     def tip(message: str) -> str:
         """Форматирование подсказки"""
-        return f"💡 **Подсказка:** {message}"
+        return f"[💡](emoji/5422439311196834318) **Подсказка:** {message}"
 
 class HelpFormatters:
     """Форматирование для help модуля"""

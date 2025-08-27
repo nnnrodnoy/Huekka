@@ -191,7 +191,7 @@ class SessionManager:
 
 def print_mishka_art():
     """Выводит ASCII арт мишки из файла с обработкой цветов и символов"""
-    art_path = Path("data") / "mishka.txt"
+    art_path = Path("arts") / "mishka.txt"
     
     if not art_path.exists():
         return False
@@ -199,7 +199,7 @@ def print_mishka_art():
     try:
         # Символы фона, которые нужно заменить на пробелы
         BACKGROUND_CHARS = {
-            '∩', '└', '\xa0',  
+            '∩', '└', '╓', '╞', '╞',
             '╖', 'µ', '⌡', '╢', 'Ü', '⌐', '¬', '│',
             '▄', '▀', '▌', '▐', '▀', '▄', '▀'
         }

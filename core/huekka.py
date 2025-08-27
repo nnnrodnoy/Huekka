@@ -77,7 +77,7 @@ class HuekkaModule:
         message_time = event.message.date.timestamp()
         ping_time = round((current_time - message_time) * 1000, 2)
         
-        await event.edit(f"[▫️](emoji/5370932688993656500) **сейчас пинг** - `{ping_time}ms`")
+        await event.edit(f"[▫️](emoji/5370932688993656500) **сейчас пинг** - `{ping_time} ms`")
 
     def get_module_info(self):
         return {

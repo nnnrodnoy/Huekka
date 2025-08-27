@@ -9,6 +9,7 @@ import logging
 import time
 from pathlib import Path
 from telethon import events
+from telethon.tl.types import MessageEntityCustomEmoji
 from config import BotConfig
 
 logger = logging.getLogger("UserBot.Huekka")
@@ -35,7 +36,14 @@ class HuekkaModule:
             module_name="Huekka"
         )
         
-        bot.set_module_description("Huekka", "Информация о боте Huekka")
+        bot.register_command(
+            cmd="setamoji",
+            handler=self.cmd_setamoji,
+            description="Получить маркеры для премиум-эмодзи",
+            module_name="Huekka"
+        )
+        
+        bot.set_module_description("Huekka", "Информация о боте Huekka и работа с эмодзи")
         
         logger.info(f"Путь к изображению: {self.image_path}")
         logger.info(f"Изображение существует: {self.image_path.exists()}")
@@ -79,10 +87,39 @@ class HuekkaModule:
         
         await event.edit(f"[▫️](emoji/5370932688993656500) **сейчас пинг** - `{ping_time}ms`")
 
+    async def cmd_setamoji(self, event):
+        """Обработчик команды .setamoji - получение маркеров для премиум-эмодзи"""
+        reply = await event.get_reply_message()
+        if not reply:
+            await event.edit("[❌](emoji/5210952531676504517) **Ответьте на сообщение с премиум-эмодзи!**")
+            return
+            
+        if not reply.entities:
+            await event.edit("[❌](emoji/5210952531676504517) **В сообщении нет премиум-эмодзи!**")
+            return
+            
+        custom_emojis = []
+        for entity in reply.entities:
+            if isinstance(entity, MessageEntityCustomEmoji):
+                emoji_char = reply.message[entity.offset:entity.offset + entity.length]
+                custom_emojis.append((emoji_char, entity.document_id))
+        
+        if not custom_emojis:
+            await event.edit("[❌](emoji/5210952531676504517) **В сообщении нет премиум-эмодзи!**")
+            return
+            
+        result = "[▫️](emoji/5370932688993656500) **Premium-Amoji:**\n\n"
+        
+        for i, (emoji_char, doc_id) in enumerate(custom_emojis, 1):
+            result += f"`MARKDOWN` - `[{emoji_char}](emoji/{doc_id})`\n\n"
+            result += f"`HTML` - `<emoji document_id={doc_id}>{emoji_char}</emoji>`\n\n"
+        
+        await event.edit(result)
+
     def get_module_info(self):
         return {
             "name": "Huekka",
-            "description": "Информация о боте Huekka",
+            "description": "Информация о боте Huekka и работа с эмодзи",
             "developer": "@BotHuekka",
             "version": "1.0.0",
             "commands": [
@@ -93,6 +130,10 @@ class HuekkaModule:
                 {
                     "command": "ping",
                     "description": "Показать пинг бота"
+                },
+                {
+                    "command": "setamoji",
+                    "description": "Получить id premium-amoji"
                 }
             ]
         }
@@ -100,7 +141,7 @@ class HuekkaModule:
 def get_module_info():
     return {
         "name": "Huekka",
-        "description": "Информация о боте Huekka",
+        "description": "Huekka tools module ",
         "developer": "@BotHuekka",
         "version": "1.0.0",
         "commands": [
@@ -111,6 +152,10 @@ def get_module_info():
             {
                 "command": "ping",
                 "description": "Показать пинг бота"
+            },
+            {
+                "command": "setamoji",
+                "description": "Получить id premium-amoji"
             }
         ]
     }

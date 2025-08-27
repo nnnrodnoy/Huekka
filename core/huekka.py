@@ -72,12 +72,12 @@ class HuekkaModule:
 
     async def cmd_ping(self, event):
         """Обработчик команды .ping"""
-        start_time = time.time()
-        message = await event.edit("[▫️](emoji/5370932688993656500) сейчас пинг - измерение...")
-        end_time = time.time()
+        # Вычисляем пинг на основе времени получения сообщения
+        current_time = time.time()
+        message_time = event.message.date.timestamp()
+        ping_time = round((current_time - message_time) * 1000, 2)
         
-        ping_time = round((end_time - start_time) * 1000, 2)
-        await message.edit(f"[▫️](emoji/5370932688993656500) сейчас пинг - {ping_time}ms")
+        await event.edit(f"[▫️](emoji/5370932688993656500) сейчас пинг - {ping_time}ms")
 
     def get_module_info(self):
         return {

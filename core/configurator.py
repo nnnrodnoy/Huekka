@@ -1,0 +1,337 @@
+import logging
+import os
+import re
+from pathlib import Path
+from telethon import events
+from config import BotConfig
+
+logger = logging.getLogger("UserBot.Configurator")
+
+class ConfiguratorModule:
+    def __init__(self, bot):
+        self.bot = bot
+        
+        bot.register_command(
+            cmd="config",
+            handler=self.config_handler,
+            description="Управление настройками бота",
+            module_name="Configurator"
+        )
+        
+        bot.set_module_description("Configurator", "Система управления настройками бота")
+
+    def get_module_info(self):
+        return {
+            "name": "Configurator",
+            "description": "Система управления настройками бота",
+            "developer": "@BotHuekka",
+            "version": "1.0.0",
+            "commands": [
+                {
+                    "command": "config",
+                    "description": "Управление настройками бота"
+                }
+            ]
+        }
+
+    async def config_handler(self, event):
+        """Обработчик команды .config"""
+        args = event.text.split()
+        
+        if len(args) < 2:
+            await self.show_help(event)
+            return
+        
+        subcommand = args[1].lower()
+        
+        if subcommand == "prefix" and len(args) > 2:
+            await self.set_prefix(event, args[2])
+        elif subcommand == "autoclean" and len(args) > 2:
+            await self.set_autoclean(event, args[2].lower())
+        elif subcommand == "autoclean_delay" and len(args) > 2:
+            await self.set_autoclean_delay(event, args[2])
+        elif subcommand == "autostart" and len(args) > 2:
+            await self.set_autostart(event, args[2].lower())
+        elif subcommand == "font" and len(args) > 2:
+            await self.set_font(event, args[2].lower())
+        elif subcommand == "font_enable" and len(args) > 2:
+            await self.set_font_enable(event, args[2].lower())
+        elif subcommand == "status":
+            await self.show_status(event)
+        else:
+            await self.show_help(event)
+
+    async def show_help(self, event):
+        """Показать справку по команде config"""
+        prefix = self.bot.command_prefix
+        
+        help_text = f"""
+🔧 **Управление настройками бота**
+
+**Использование:**
+`{prefix}config prefix <новый префикс>` - Изменить префикс команд
+`{prefix}config autoclean <on/off>` - Включить/выключить автоклинер
+`{prefix}config autoclean_delay <секунды>` - Установить задержку автоклинера
+`{prefix}config autostart <on/off>` - Включить/выключить автозапуск
+`{prefix}config font <название_шрифта>` - Установить шрифт
+`{prefix}config font_enable <on/off>` - Включить/выключить шрифты
+`{prefix}config status` - Показать текущие настройки
+
+**Примеры:**
+`{prefix}config prefix !` - Установить префикс "!"
+`{prefix}config autoclean on` - Включить автоклинер
+`{prefix}config autoclean_delay 3600` - Установить задержку 1 час
+`{prefix}config autostart on` - Включить автозапуск
+`{prefix}config font шрифт1` - Установить шрифт1
+`{prefix}config font_enable on` - Включить преобразование шрифтов
+"""
+        await event.edit(help_text)
+
+    async def set_prefix(self, event, new_prefix):
+        """Установить новый префикс команд"""
+        # Проверяем валидность префикса
+        if not new_prefix or len(new_prefix) > 3:
+            await event.edit("❌ Префикс должен быть от 1 до 3 символов!")
+            return
+        
+        # Проверяем, что префикс не содержит пробелов
+        if ' ' in new_prefix:
+            await event.edit("❌ Префикс не может содержать пробелы!")
+            return
+        
+        # Сохраняем новый префикс в базу данных
+        success = self.bot.db.set_config_value('command_prefix', new_prefix)
+        
+        if success:
+            # Обновляем префикс в текущей сессии
+            self.bot.command_prefix = new_prefix
+            await event.edit(f"✅ Префикс команд изменен на: `{new_prefix}`")
+        else:
+            await event.edit("❌ Ошибка при изменении префикса!")
+
+    async def set_autoclean(self, event, state):
+        """Включить/выключить автоклинер"""
+        if state not in ['on', 'off']:
+            await event.edit("❌ Используйте: `on` или `off`")
+            return
+        
+        enabled = state == 'on'
+        
+        # Сохраняем настройку в базу данных
+        success = self.bot.db.set_config_value('autoclean_enabled', str(enabled))
+        
+        if success:
+            # Обновляем настройку автоклинера
+            self.bot.autocleaner.update_settings(enabled=enabled)
+            
+            status = "включен" if enabled else "выключен"
+            await event.edit(f"✅ Автоклинер {status}!")
+        else:
+            await event.edit("❌ Ошибка при изменении настроек автоклинера!")
+
+    async def set_autoclean_delay(self, event, delay_str):
+        """Установить задержку автоклинера"""
+        try:
+            delay = int(delay_str)
+            
+            if delay < 10:
+                await event.edit("❌ Задержка должна быть не менее 10 секунд!")
+                return
+            
+            if delay > 86400:  # 24 часа
+                await event.edit("❌ Задержка не может превышать 24 часа (86400 секунд)!")
+                return
+            
+            # Сохраняем настройку в базу данных
+            success = self.bot.db.set_config_value('autoclean_delay', str(delay))
+            
+            if success:
+                # Обновляем настройку автоклинера
+                self.bot.autocleaner.update_settings(delay=delay)
+                
+                # Форматируем время в читаемый вид
+                if delay < 60:
+                    time_str = f"{delay} секунд"
+                elif delay < 3600:
+                    minutes = delay // 60
+                    time_str = f"{minutes} минут"
+                else:
+                    hours = delay // 3600
+                    time_str = f"{hours} часов"
+                
+                await event.edit(f"✅ Задержка автоклинера установлена: {time_str}")
+            else:
+                await event.edit("❌ Ошибка при установке задержки!")
+                
+        except ValueError:
+            await event.edit("❌ Задержка должна быть числом!")
+
+    async def set_autostart(self, event, state):
+        """Включить/выключить автозапуск бота"""
+        if state not in ['on', 'off']:
+            await event.edit("❌ Используйте: `on` или `off`")
+            return
+        
+        enabled = state == 'on'
+        
+        # Получаем путь к директории бота
+        bot_dir = os.getcwd()
+        startup_cmd = f"cd {bot_dir} && python main.py\n"
+        
+        # Путь к файлу .bashrc
+        bashrc_path = Path.home() / ".bashrc"
+        
+        try:
+            if enabled:
+                # Добавляем команду запуска в .bashrc
+                with open(bashrc_path, 'a+') as f:
+                    f.seek(0)
+                    content = f.read()
+                    if startup_cmd not in content:
+                        f.write(f"\n# Автозапуск Huekka UserBot\n{startup_cmd}")
+            else:
+                # Удаляем команду запуска из .bashrc
+                if bashrc_path.exists():
+                    with open(bashrc_path, 'r') as f:
+                        lines = f.readlines()
+                    
+                    # Фильтруем строки, связанные с автозапуском бота
+                    new_lines = []
+                    skip_next = False
+                    
+                    for line in lines:
+                        if skip_next:
+                            skip_next = False
+                            continue
+                            
+                        if "# Автозапуск Huekka UserBot" in line:
+                            skip_next = True
+                            continue
+                            
+                        if startup_cmd in line:
+                            continue
+                            
+                        new_lines.append(line)
+                    
+                    with open(bashrc_path, 'w') as f:
+                        f.writelines(new_lines)
+            
+            # Сохраняем настройку в базу данных
+            success = self.bot.db.set_config_value('autostart_enabled', str(enabled))
+            
+            if success:
+                status = "включен" if enabled else "выключен"
+                await event.edit(f"✅ Автозапуск {status}!")
+            else:
+                await event.edit("❌ Ошибка при изменении настроек автозапуска!")
+                
+        except Exception as e:
+            logger.error(f"Ошибка изменения автозапуска: {str(e)}")
+            await event.edit("❌ Ошибка при изменении настроек автозапуска!")
+
+    async def set_font(self, event, font_name):
+        """Установить шрифт"""
+        # Проверяем, существует ли модуль шрифтов
+        if not hasattr(self.bot, 'font_module'):
+            await event.edit("❌ Модуль шрифтов не загружен!")
+            return
+        
+        # Проверяем, существует ли шрифт
+        if font_name not in self.bot.font_module.fonts:
+            available_fonts = ", ".join(self.bot.font_module.fonts.keys())
+            await event.edit(f"❌ Шрифт '{font_name}' не найден! Доступные шрифты: {available_fonts}")
+            return
+        
+        # Сохраняем настройку
+        success = self.bot.db.set_config_value('current_font', font_name)
+        
+        if success:
+            # Обновляем настройку модуля шрифтов
+            self.bot.font_module.current_font = font_name
+            
+            # Показываем пример
+            example = self.bot.font_module.apply_font("шрифт")
+            await event.edit(f"✅ Шрифт изменен на: {font_name}\nПример: {example}")
+        else:
+            await event.edit("❌ Ошибка при изменении шрифта!")
+
+    async def set_font_enable(self, event, state):
+        """Включить/выключить шрифты"""
+        if state not in ['on', 'off']:
+            await event.edit("❌ Используйте: `on` или `off`")
+            return
+        
+        enabled = state == 'on'
+        
+        # Проверяем, существует ли модуль шрифтов
+        if not hasattr(self.bot, 'font_module'):
+            await event.edit("❌ Модуль шрифтов не загружен!")
+            return
+        
+        # Сохраняем настройку
+        success = self.bot.db.set_config_value('font_enabled', str(enabled))
+        
+        if success:
+            # Обновляем настройку модуля шрифтов
+            self.bot.font_module.enabled = enabled
+            status = "включены" if enabled else "выключены"
+            await event.edit(f"✅ Шрифты {status}!")
+        else:
+            await event.edit("❌ Ошибка при изменении настроек шрифтов!")
+
+    async def show_status(self, event):
+        """Показать текущие настройки"""
+        # Получаем настройки из базы данных
+        prefix = self.bot.db.get_config_value('command_prefix', '.')
+        autoclean_enabled = self.bot.db.get_config_value('autoclean_enabled', 'True').lower() == 'true'
+        autoclean_delay = int(self.bot.db.get_config_value('autoclean_delay', '1800'))
+        autostart_enabled = self.bot.db.get_config_value('autostart_enabled', 'False').lower() == 'true'
+        
+        # Получаем настройки шрифтов
+        font_enabled = False
+        current_font = "Не установлен"
+        
+        if hasattr(self.bot, 'font_module'):
+            font_enabled = self.bot.db.get_config_value('font_enabled', 'False').lower() == 'true'
+            current_font = self.bot.db.get_config_value('current_font', 'шрифт1')
+        
+        # Форматируем задержку
+        if autoclean_delay < 60:
+            delay_str = f"{autoclean_delay} секунд"
+        elif autoclean_delay < 3600:
+            minutes = autoclean_delay // 60
+            delay_str = f"{minutes} минут"
+        else:
+            hours = autoclean_delay // 3600
+            delay_str = f"{hours} часов"
+        
+        status_text = f"""
+⚙️ **Текущие настройки бота**
+
+**Префикс команд:** `{prefix}`
+**Автоклинер:** {'✅ Включен' if autoclean_enabled else '❌ Выключен'}
+**Задержка автоклинера:** {delay_str}
+**Автозапуск:** {'✅ Включен' if autostart_enabled else '❌ Выключен'}
+**Шрифты:** {'✅ Включены' if font_enabled else '❌ Выключены'}
+**Текущий шрифт:** {current_font if font_enabled else 'Не установлен'}
+
+Используйте `{prefix}config help` для просмотра всех команд
+"""
+        await event.edit(status_text)
+
+def get_module_info():
+    return {
+        "name": "Configurator",
+        "description": "Система управления настройками бота",
+        "developer": "@BotHuekka",
+        "version": "1.0.0",
+        "commands": [
+            {
+                "command": "config",
+                "description": "Управление настройками бота"
+            }
+        ]
+    }
+
+def setup(bot):
+    ConfiguratorModule(bot)

@@ -148,15 +148,28 @@ class LoaderModule:
             "developer": "@BotHuekka"
         }
 
-    async def animate_loading(self, event, message, is_premium):
+    async def animate_loading_until_done(self, event, message, is_premium, coroutine):
+        """Анимирует загрузку до завершения корутины"""
         animation = ["/", "-", "\\", "|"]
-        start_time = time.time()
         i = 0
         
-        min_duration = self.min_animation_time
+        # Запускаем анимацию
+        anim_task = asyncio.create_task(self._run_animation(event, message, is_premium, animation))
         
         try:
-            while time.time() - start_time < min_duration:
+            # Выполняем основную задачу
+            result = await coroutine
+            return result
+        finally:
+            # Останавливаем анимацию
+            if not anim_task.done():
+                anim_task.cancel()
+
+    async def _run_animation(self, event, message, is_premium, animation):
+        """Запускает анимацию"""
+        i = 0
+        try:
+            while True:
                 frame = animation[i % len(animation)]
                 prefix = f"[⚙️](emoji/{self.loader_emoji_id}) " if is_premium else "⚙️ "
                 await event.edit(f"{prefix}{message} {frame}")
@@ -169,31 +182,27 @@ class LoaderModule:
 
     async def check_and_install_dependencies(self, module_file, event, is_premium):
         """Проверяет и устанавливает зависимости модуля"""
-        prefix = f"[⚙️](emoji/{self.loader_emoji_id}) " if is_premium else "⚙️ "
-        check_msg = await event.edit(f"{prefix}Проверяю зависимости /")
-        
-        if hasattr(self.bot, 'dependency_installer'):
+        if not hasattr(self.bot, 'dependency_installer'):
+            return True
+            
+        # Используем анимацию для всего процесса установки зависимостей
+        async def install_deps():
             installed, errors = await self.bot.dependency_installer.install_dependencies(module_file)
             
             if errors:
                 error_list = "\n".join([f"• {error}" for error in errors[:3]])
-                error_msg = f"❌ **Ошибки установки зависимостей:**\n{error_list}"
-                await check_msg.edit(error_msg)
-                return False
-            elif installed:
-                installed_list = "\n".join([f"• {pkg}" for pkg in installed])
-                success_msg = f"✅ **Установлены зависимости:**\n{installed_list}"
-                await check_msg.edit(success_msg)
-                await asyncio.sleep(2)
-                return True
-            else:
-                await check_msg.edit("✅ **Зависимости не требуются**")
-                await asyncio.sleep(1)
-                return True
-        else:
-            await check_msg.edit("⚠️ **Установщик зависимостей не доступен**")
-            await asyncio.sleep(1)
+                raise Exception(f"Ошибки установки зависимостей:\n{error_list}")
+            
             return True
+            
+        try:
+            return await self.animate_loading_until_done(
+                event, "Установка зависимостей", is_premium, install_deps()
+            )
+        except Exception as e:
+            logger.error(f"Ошибка установки зависимостей: {str(e)}")
+            await event.edit(f"❌ {str(e)}")
+            return False
 
     async def load_module(self, event):
         if not event.is_reply:
@@ -224,8 +233,8 @@ class LoaderModule:
         temp_dir.mkdir(exist_ok=True)
         temp_file = temp_dir / file_name
         
-        anim_task = None
         try:
+            # Скачиваем файл
             module_file = await reply.download_media(file=str(temp_file))
             
             # Проверяем и устанавливаем зависимости
@@ -234,67 +243,69 @@ class LoaderModule:
                 logger.warning(f"Не удалось установить зависимости для {module_name}")
                 return
             
-            # Загружаем модуль
-            anim_task = asyncio.create_task(
-                self.animate_loading(event, f"Загружаю модуль `{module_name}`", is_premium)
-            )
-
-            start_time = time.time()
-            before_commands = set(self.bot.commands.keys())
-            
-            spec = importlib.util.spec_from_file_location(module_name, module_file)
-            module = importlib.util.module_from_spec(spec)
-            
-            spec.loader.exec_module(module)
-            
-            if not hasattr(module, 'setup'):
-                raise Exception("В модуле отсутствует функция setup()")
-            
-            final_path = Path("modules") / file_name
-            os.rename(module_file, final_path)
-            module_file = str(final_path)
-            
-            spec = importlib.util.spec_from_file_location(module_name, module_file)
-            module = importlib.util.module_from_spec(spec)
-            sys.modules[module_name] = module
-            spec.loader.exec_module(module)
-            
-            module.setup(self.bot)
+            # Загружаем модуль с анимацией
+            async def load_module_task():
+                start_time = time.time()
+                before_commands = set(self.bot.commands.keys())
                 
-            after_commands = set(self.bot.commands.keys())
-            new_commands = after_commands - before_commands
+                spec = importlib.util.spec_from_file_location(module_name, module_file)
+                module = importlib.util.module_from_spec(spec)
+                
+                spec.loader.exec_module(module)
+                
+                if not hasattr(module, 'setup'):
+                    raise Exception("В модуле отсутствует функция setup()")
+                
+                final_path = Path("modules") / file_name
+                os.rename(module_file, final_path)
+                module_file_path = str(final_path)
+                
+                spec = importlib.util.spec_from_file_location(module_name, module_file_path)
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[module_name] = module
+                spec.loader.exec_module(module)
+                
+                module.setup(self.bot)
+                    
+                after_commands = set(self.bot.commands.keys())
+                new_commands = after_commands - before_commands
+                
+                found_name, module_info = await self.find_module_info(module_name)
+                
+                # Формируем сообщение о успешной загрузке
+                if module_info:
+                    loaded_message = loader_format.format_loaded_message(
+                        module_info, is_premium, self.loaded_emoji_id, 
+                        self.get_random_smile(), self.command_emoji_id, self.dev_emoji_id,
+                        self.bot.command_prefix
+                    )
+                    logger.info(f"Модуль {found_name} загружен (команд: {len(new_commands)})")
+                else:
+                    module_info = {
+                        "name": module_name,
+                        "description": "Описание недоступно",
+                        "commands": [{
+                            "command": cmd, 
+                            "description": self.bot.commands[cmd].get("description", "Без описания")
+                        } for cmd in new_commands],
+                        "version": "1.0.0",
+                        "developer": "@BotHuekka"
+                    }
+                    loaded_message = loader_format.format_loaded_message(
+                        module_info, is_premium, self.loaded_emoji_id, 
+                        self.get_random_smile(), self.command_emoji_id, self.dev_emoji_id,
+                        self.bot.command_prefix
+                    )
+                
+                return loaded_message
             
-            found_name, module_info = await self.find_module_info(module_name)
+            # Запускаем загрузку модуля с анимацией
+            loaded_message = await self.animate_loading_until_done(
+                event, "Загрузка модуля", is_premium, load_module_task()
+            )
             
-            elapsed = time.time() - start_time
-            if elapsed < self.min_animation_time:
-                await asyncio.sleep(self.min_animation_time - elapsed)
-            
-            if module_info:
-                loaded_message = loader_format.format_loaded_message(
-                    module_info, is_premium, self.loaded_emoji_id, 
-                    self.get_random_smile(), self.command_emoji_id, self.dev_emoji_id,
-                    self.bot.command_prefix
-                )
-                await event.edit(loaded_message)
-                logger.info(f"Модуль {found_name} загружен (команд: {len(new_commands)})")
-            else:
-                module_info = {
-                    "name": module_name,
-                    "description": "Описание недоступно",
-                    "commands": [{
-                        "command": cmd, 
-                        "description": self.bot.commands[cmd].get("description", "Без описания")
-                    } for cmd in new_commands],
-                    "version": "1.0.0",
-                    "developer": "@BotHuekka"
-                }
-                loaded_message = loader_format.format_loaded_message(
-                    module_info, is_premium, self.loaded_emoji_id, 
-                    self.get_random_smile(), self.command_emoji_id, self.dev_emoji_id,
-                    self.bot.command_prefix
-                )
-                await event.edit(loaded_message)
+            # Показываем результат
+            await event.edit(loaded_message)
                 
         except Exception as e:
             error_trace = traceback.format_exc()
@@ -321,9 +332,6 @@ class LoaderModule:
                     os.remove(temp_file)
             except:
                 pass
-                
-            if anim_task and not anim_task.done():
-                anim_task.cancel()
 
     async def unload_module(self, event):
         prefix = self.bot.command_prefix
@@ -357,11 +365,8 @@ class LoaderModule:
         user_info = await self.get_user_info(event)
         is_premium = user_info["premium"]
 
-        anim_task = asyncio.create_task(
-            self.animate_loading(event, f"Удаляю модуль `{found_name}`", is_premium)
-        )
-
-        try:
+        # Используем анимацию для выгрузки модуля
+        async def unload_module_task():
             start_time = time.time()
             
             # Удаляем команды только если модуль загружен
@@ -393,9 +398,16 @@ class LoaderModule:
             if elapsed < self.min_animation_time:
                 await asyncio.sleep(self.min_animation_time - elapsed)
             
-            unloaded_message = loader_format.format_unloaded_message(
+            return loader_format.format_unloaded_message(
                 found_name, is_premium, self.info_emoji_id, self.bot.command_prefix
             )
+
+        try:
+            # Запускаем выгрузку модуля с анимацией
+            unloaded_message = await self.animate_loading_until_done(
+                event, f"Удаляю модуль `{found_name}`", is_premium, unload_module_task()
+            )
+            
             message = await event.edit(unloaded_message)
             
             await asyncio.sleep(self.delete_delay)
@@ -406,9 +418,6 @@ class LoaderModule:
             logger.error(f"Ошибка выгрузки модуля: {str(e)}\n{error_trace}")
             error_msg = msg.error("Ошибка выгрузки модуля", str(e))
             await event.edit(error_msg)
-        finally:
-            if anim_task and not anim_task.done():
-                anim_task.cancel()
 
 def setup(bot):
     LoaderModule(bot)

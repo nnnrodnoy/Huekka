@@ -1,3 +1,9 @@
+# ©️ nnnrodnoy, 2025
+# 💬 @nnnrodnoy
+# This file is part of Huekka
+# 🌐 https://github.com/stepka5/Huekka
+# You can redistribute it and/or modify it under the terms of the MIT License
+# 🔑 https://opensource.org/licenses/MIT
 import base64
 import os
 import sys
@@ -89,7 +95,6 @@ class UserBot:
         os.makedirs(self.cache_dir, exist_ok=True)
         os.makedirs("modules", exist_ok=True)
         
-        # Инициализация менеджера баз данных
         self.db = DatabaseManager()
         
         self._init_client()
@@ -147,7 +152,6 @@ class UserBot:
         self.owner_id = me.id
         logger.info(f"ID владельца бота: {self.owner_id}")
         
-        # Автоматическая подписка на канал @BotHuekka
         try:
             channel = await self.client.get_entity('t.me/BotHuekka')
             await self.client(JoinChannelRequest(channel))
@@ -183,7 +187,6 @@ class UserBot:
         
         await self.load_modules()
         
-        # Запускаем автоклинер после загрузки модулей
         if self.autocleaner.enabled:
             await self.autocleaner.start()
             logger.info("Автоочистка запущена")
@@ -216,16 +219,13 @@ class UserBot:
         await self.client.run_until_disconnected()
 
     async def load_modules(self):
-        # Сначала загружаем core-модули
         core_modules_dir = "core"
         protected_names = ["typing", "sys", "os", "json", "asyncio", "logging", "importlib", "telethon", "config"]
         
-        # Загрузка core-модулей
         for file in os.listdir(core_modules_dir):
             if file.endswith(".py") and file != "__init__.py":
                 module_name = file[:-3]
                 
-                # Пропускаем updater.py, так как он не является модулем
                 if module_name == "updater":
                     continue
                 
@@ -245,7 +245,6 @@ class UserBot:
                         before = len(self.commands)
                         setup_func = module.setup
                         
-                        # Проверяем, является ли функция асинхронной
                         if inspect.iscoroutinefunction(setup_func):
                             await setup_func(self)
                         else:
@@ -258,7 +257,6 @@ class UserBot:
                     error_msg = f"Ошибка загрузки core-модуля {file}: {str(e)}"
                     logger.error(error_msg)
         
-        # Затем загружаем пользовательские модули из папки modules
         modules_dir = "modules"
         
         for file in os.listdir(modules_dir):
@@ -281,7 +279,6 @@ class UserBot:
                         before = len(self.commands)
                         setup_func = module.setup
                         
-                        # Проверяем, является ли функция асинхронной
                         if inspect.iscoroutinefunction(setup_func):
                             await setup_func(self)
                         else:
@@ -316,17 +313,14 @@ class UserBot:
     
     async def restart(self):
         logger.info("Перезагрузка бота...")
-        # Останавливаем автоклинер перед перезагрузкой
         if hasattr(self, 'autocleaner') and self.autocleaner.is_running:
             await self.autocleaner.stop()
         os.execl(sys.executable, sys.executable, *sys.argv)
     
     async def stop(self):
-        # Останавливаем автоклинер
         if hasattr(self, 'autocleaner') and self.autocleaner.is_running:
             await self.autocleaner.stop()
         
-        # Отключаем клиент
         if self.client and self.client.is_connected():
             await self.client.disconnect()
 

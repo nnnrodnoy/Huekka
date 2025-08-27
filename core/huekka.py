@@ -36,7 +36,7 @@ class HuekkaModule:
         """Обработчик команды .huekka"""
         try:
             if not self.image_path.exists():
-                error_msg = f"🚫 Изображение не найдено по пути: {self.image_path}\n"
+                error_msg = f"[🚫](emoji/5240241223632954241) Изображение не найдено по пути: {self.image_path}\n"
                 error_msg += f"Текущая рабочая директория: {Path.cwd()}\n"
                 error_msg += f"Абсолютный путь: {self.image_path.resolve()}\n"
                 error_msg += f"Проверьте, что файл существует по указанному пути."
@@ -58,9 +58,9 @@ class HuekkaModule:
             )
             
         except Exception as e:
-            error_msg = f"🚫 Ошибка при отправке информации: {str(e)}"
+            error_msg = f"[🚫](emoji/5240241223632954241) **Ошибка при отправке информации:** {str(e)}"
             await event.edit(error_msg)
-            logger.error(f"Ошибка в команде .huekka: {str(e)}")
+            logger.error(f"**Ошибка в команде** '.huekka:' {str(e)}")
 
     def get_module_info(self):
         return {

@@ -9,7 +9,7 @@ class BotConfig:
     OWNER_ID = 0          
     LOG_LEVEL = "INFO"   
     VERSION = "1.1.0"     
-    GITHUB_URL = "https://github.com/stepka5/Huekka"
+    GITHUB_URL = "https://github.com/nnnrodnoy/Huekka/"
     
     CORE_MODULES = ["Help", "System", "Loader", "Updater", "Configurator", 
                     "AutoCleaner", "LimiterTest", "Database"]

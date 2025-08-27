@@ -45,7 +45,7 @@ class Updater:
     def __init__(self):
         self.repo_url = "https://github.com/nnnrodnoy/Huekka"
         self.update_files = ['main.py', 'userbot.py', 'installer.sh', 'start_bot.sh', 'requirements.txt']
-        self.update_dirs = ['core' 'arts']
+        self.update_dirs = ['core']
     
     def run_command(self, cmd, cwd=None):
         """Выполняет команду и возвращает результат"""

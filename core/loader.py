@@ -201,17 +201,17 @@ class LoaderModule:
             )
         except Exception as e:
             logger.error(f"Ошибка установки зависимостей: {str(e)}")
-            await event.edit(f"❌ {str(e)}")
+            await event.edit(f"[❌](emoji/5210952531676504517) {str(e)}")
             return False
 
     async def load_module(self, event):
         if not event.is_reply:
-            await event.edit("ℹ️ Ответьте на сообщение с файлом модуля!")
+            await event.edit("[ℹ️](emoji/5422439311196834318) **Ответьте на сообщение с файлом модуля!**")
             return
 
         reply = await event.get_reply_message()
         if not reply.document or not reply.document.mime_type == "text/x-python":
-            await event.edit("🚫 **Это не Python-файл!**")
+            await event.edit("[🚫](emoji/5240241223632954241) **Это не Python-файл!**")
             return
 
         user_info = await self.get_user_info(event)
@@ -224,7 +224,7 @@ class LoaderModule:
                 break
         
         if not file_name:
-            await event.edit("🚫 **Не удалось определить имя файла!**")
+            await event.edit("[🚫](emoji/5240241223632954241) **Не удалось определить имя файла!**")
             return
 
         module_name = os.path.basename(file_name).replace(".py", "")

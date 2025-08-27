@@ -1,4 +1,9 @@
-# autocleaner.py
+# ©️ nnnrodnoy, 2025
+# 💬 @nnnrodnoy
+# This file is part of Huekka
+# 🌐 https://github.com/stepka5/Huekka
+# You can redistribute it and/or modify it under the terms of the MIT License
+# 🔑 https://opensource.org/licenses/MIT
 import asyncio
 import time
 import logging
@@ -13,15 +18,12 @@ class AutoCleaner:
     def __init__(self, bot, enabled=None, delay=None):
         self.bot = bot
         
-        # Используем переданные настройки или загружаем из конфига
         self.enabled = enabled if enabled is not None else BotConfig.AUTOCLEAN["enabled"]
         self.default_delay = delay if delay is not None else BotConfig.AUTOCLEAN["default_delay"]
         
-        # Загрузка настроек исключительно из конфига
         autoclean_config = BotConfig.AUTOCLEAN
         self.tracked_commands = autoclean_config["tracked_commands"]
         
-        # Компилируем регулярные выражения
         self.compiled_patterns = [
             re.compile(pattern.format(re.escape(bot.command_prefix)))
             for pattern in self.tracked_commands
@@ -30,14 +32,12 @@ class AutoCleaner:
         self.cleanup_task = None
         self.is_running = False
         
-        # Регистрация обработчика всех исходящих сообщений от бота
         @bot.client.on(events.NewMessage(outgoing=True))
         async def outgoing_handler(event):
             if self.enabled and (event.is_channel or event.is_group or event.is_private):
                 await self.process_message(event)
 
     async def start(self):
-        """Запуск задачи автоочистки"""
         if self.enabled and not self.is_running:
             self.is_running = True
             self.cleanup_task = asyncio.create_task(self.cleanup_loop())
@@ -56,7 +56,6 @@ class AutoCleaner:
 
     async def process_message(self, event):
         """Обработка исходящего сообщения бота"""
-        # Проверяем, является ли сообщение результатом отслеживаемой команды
         text = event.raw_text or ""
         for pattern in self.compiled_patterns:
             if pattern.match(text):
@@ -67,7 +66,6 @@ class AutoCleaner:
     async def schedule_cleanup(self, message):
         """Добавление сообщения в очередь на удаление"""
         try:
-            # Используем DatabaseManager для добавления в очередь
             success = self.bot.db.add_to_autoclean(
                 message.chat_id, 
                 message.id, 
@@ -86,13 +84,11 @@ class AutoCleaner:
         """Основной цикл автоочистки"""
         while self.is_running:
             try:
-                # Проверяем, подключен ли бот
                 if not self.bot.client.is_connected():
                     logger.debug("Бот отключен, пропускаем очистку")
                     await asyncio.sleep(10)
                     continue
                 
-                # Получаем сообщения, готовые к удалению
                 pending_messages = self.bot.db.get_pending_autoclean()
                 
                 if pending_messages:
@@ -100,36 +96,31 @@ class AutoCleaner:
                 
                 for msg_id, chat_id, message_id, attempts in pending_messages:
                     try:
-                        # Пытаемся удалить сообщение
                         await self.bot.client.delete_messages(chat_id, message_id)
                         logger.info(f"Сообщение {message_id} в чате {chat_id} удалено")
                         
-                        # Удаляем запись из очереди
                         self.bot.db.remove_from_autoclean(msg_id)
                         
                     except RPCError as e:
                         logger.warning(f"Ошибка RPC при удалении сообщения {message_id}: {str(e)}")
                         
-                        # Увеличиваем счетчик попыток
                         new_attempts = attempts + 1
                         
-                        if new_attempts >= 5:  # Максимум 5 попыток
+                        if new_attempts >= 5:
                             logger.warning(f"Превышено максимальное количество попыток для сообщения {message_id}, удаляем из очереди")
                             self.bot.db.remove_from_autoclean(msg_id)
                         else:
-                            # Обновляем время удаления (через 1 минуту) и счетчик попыток
                             new_delete_at = time.time() + 60
                             self.bot.db.update_autoclean_attempt(msg_id, new_attempts, new_delete_at)
                             
                     except Exception as e:
                         logger.error(f"Неизвестная ошибка при удалении сообщения {message_id}: {str(e)}")
-                        # Удаляем запись из очереди при неизвестной ошибке
                         self.bot.db.remove_from_autoclean(msg_id)
                     
             except Exception as e:
                 logger.error(f"Ошибка в cleanup_loop: {str(e)}")
             
-            await asyncio.sleep(15)  # Проверяем каждые 15 секунд
+            await asyncio.sleep(15) 
 
     def update_settings(self, enabled=None, delay=None):
         """Обновление настроек автоклинера"""

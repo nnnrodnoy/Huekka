@@ -168,7 +168,7 @@ class HelpModule:
                 module_info = await self.get_module_info(found_module)
                 
                 if not module_info:
-                    await event.edit(f"🚫 Информация о модуле `{found_module}` недоступна")
+                    await event.edit(f"[🚫](emoji/5240241223632954241) **Информация о модуле** `{found_module}` недоступна")
                     return
                 
                 text = help_format.format_module_info(

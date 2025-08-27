@@ -258,7 +258,7 @@ class ConfiguratorModule:
         
         if success:
             self.bot.font_module.enabled = enabled
-            status = "**включены"** if enabled else "выключены"
+            status = "включены" if enabled else "выключены"
             await event.edit(f"[✅](emoji/5206607081334906820)** Шрифты** {status}!")
         else:
             await event.edit("[❌](emoji/5210952531676504517) **Ошибка при изменении настроек шрифтов!**")

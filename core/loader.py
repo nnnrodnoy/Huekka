@@ -15,6 +15,7 @@ from telethon import events, types
 from telethon.errors import MessageNotModifiedError
 import traceback
 import time
+import random
 from config import BotConfig
 from core.formatters import loader_format, msg
 
@@ -48,6 +49,10 @@ class LoaderModule:
         )
         
         bot.set_module_description("Loader", "Динамическая загрузка модулей")
+
+    def get_random_smile(self):
+        """Возвращает случайный смайл из конфигурации"""
+        return random.choice(BotConfig.DEFAULT_SMILES)
 
     async def get_user_info(self, event):
         try:
@@ -219,6 +224,7 @@ class LoaderModule:
         temp_dir.mkdir(exist_ok=True)
         temp_file = temp_dir / file_name
         
+        anim_task = None
         try:
             module_file = await reply.download_media(file=str(temp_file))
             
@@ -316,10 +322,93 @@ class LoaderModule:
             except:
                 pass
                 
-            if 'anim_task' in locals() and not anim_task.done():
+            if anim_task and not anim_task.done():
                 anim_task.cancel()
 
-    # Остальной код без изменений...
+    async def unload_module(self, event):
+        prefix = self.bot.command_prefix
+        
+        args = event.text.split()
+        if len(args) < 2:
+            await event.edit(f"ℹ️ **Укажите название модуля:** `{prefix}ulm ModuleName`")
+            return
+
+        module_query = " ".join(args[1:]).strip()
+        
+        # Сначала ищем среди загруженных модулей
+        found_name, module_info = await self.find_module_info(module_query)
+        
+        # Если не нашли, ищем файл модуля
+        if not found_name:
+            found_name = self.find_module_file(module_query)
+        
+        if not found_name:
+            error_msg = msg.error(f"Модуль `{module_query}` не найден")
+            await event.edit(error_msg)
+            return
+
+        module_path = f"modules/{found_name}.py"
+        
+        if not os.path.exists(module_path):
+            error_msg = msg.error(f"Модуль `{found_name}` не найден")
+            await event.edit(error_msg)
+            return
+
+        user_info = await self.get_user_info(event)
+        is_premium = user_info["premium"]
+
+        anim_task = asyncio.create_task(
+            self.animate_loading(event, f"Удаляю модуль `{found_name}`", is_premium)
+        )
+
+        try:
+            start_time = time.time()
+            
+            # Удаляем команды только если модуль загружен
+            if found_name in self.bot.modules:
+                commands_to_remove = [
+                    cmd for cmd, data in self.bot.commands.items() 
+                    if data.get("module") and data.get("module").lower() == found_name.lower()
+                ]
+                
+                for cmd in commands_to_remove:
+                    del self.bot.commands[cmd]
+            
+            # Удаляем из sys.modules если есть
+            if found_name in sys.modules:
+                del sys.modules[found_name]
+            
+            # Удаляем файл
+            os.remove(module_path)
+            
+            # Удаляем из bot.modules если есть
+            if found_name in self.bot.modules:
+                del self.bot.modules[found_name]
+            
+            # Удаляем описание модуля если есть
+            if found_name in self.bot.module_descriptions:
+                del self.bot.module_descriptions[found_name]
+            
+            elapsed = time.time() - start_time
+            if elapsed < self.min_animation_time:
+                await asyncio.sleep(self.min_animation_time - elapsed)
+            
+            unloaded_message = loader_format.format_unloaded_message(
+                found_name, is_premium, self.info_emoji_id, self.bot.command_prefix
+            )
+            message = await event.edit(unloaded_message)
+            
+            await asyncio.sleep(self.delete_delay)
+            await message.delete()
+            
+        except Exception as e:
+            error_trace = traceback.format_exc()
+            logger.error(f"Ошибка выгрузки модуля: {str(e)}\n{error_trace}")
+            error_msg = msg.error("Ошибка выгрузки модуля", str(e))
+            await event.edit(error_msg)
+        finally:
+            if anim_task and not anim_task.done():
+                anim_task.cancel()
 
 def setup(bot):
     LoaderModule(bot)

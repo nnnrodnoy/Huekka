@@ -6,6 +6,7 @@
 # 🔑 https://opensource.org/licenses/MIT
 import os
 import logging
+import time
 from pathlib import Path
 from telethon import events
 from config import BotConfig
@@ -24,6 +25,13 @@ class HuekkaModule:
             cmd="huekka",
             handler=self.cmd_huekka,
             description="Показать информацию о боте",
+            module_name="Huekka"
+        )
+        
+        bot.register_command(
+            cmd="ping",
+            handler=self.cmd_ping,
+            description="Показать пинг бота",
             module_name="Huekka"
         )
         
@@ -62,6 +70,15 @@ class HuekkaModule:
             await event.edit(error_msg)
             logger.error(f"**Ошибка в команде** '.huekka:' {str(e)}")
 
+    async def cmd_ping(self, event):
+        """Обработчик команды .ping"""
+        start_time = time.time()
+        message = await event.edit("[▫️](emoji/5370932688993656500) сейчас пинг - измерение...")
+        end_time = time.time()
+        
+        ping_time = round((end_time - start_time) * 1000, 2)
+        await message.edit(f"[▫️](emoji/5370932688993656500) сейчас пинг - {ping_time}ms")
+
     def get_module_info(self):
         return {
             "name": "Huekka",
@@ -72,6 +89,10 @@ class HuekkaModule:
                 {
                     "command": "huekka",
                     "description": "Показать информацию о боте"
+                },
+                {
+                    "command": "ping",
+                    "description": "Показать пинг бота"
                 }
             ]
         }
@@ -86,6 +107,10 @@ def get_module_info():
             {
                 "command": "huekka",
                 "description": "Показать информацию о боте"
+            },
+            {
+                "command": "ping",
+                "description": "Показать пинг бота"
             }
         ]
     }

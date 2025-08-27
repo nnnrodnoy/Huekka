@@ -1,4 +1,9 @@
-# database.py
+# ©️ nnnrodnoy, 2025
+# 💬 @nnnrodnoy
+# This file is part of Huekka
+# 🌐 https://github.com/stepka5/Huekka
+# You can redistribute it and/or modify it under the terms of the MIT License
+# 🔑 https://opensource.org/licenses/MIT
 import sqlite3
 import os
 import logging
@@ -14,7 +19,6 @@ class DatabaseManager:
         self.db_folder = db_folder
         os.makedirs(db_folder, exist_ok=True)
         
-        # Инициализация всех баз данных
         self._init_databases()
     
     def _init_databases(self):
@@ -74,7 +78,6 @@ class DatabaseManager:
         
         return result
     
-    # ===== CONFIG DATABASE =====
     def init_config_db(self):
         """Инициализация базы данных конфигурации"""
         db_name = "config.db"
@@ -102,7 +105,6 @@ class DatabaseManager:
         for query in queries:
             self.execute_query(db_name, query, commit=True)
         
-        # Установка значений по умолчанию
         default_config = [
             ('command_prefix', '.'),
             ('autoclean_enabled', 'True'),
@@ -171,7 +173,6 @@ class DatabaseManager:
             logger.error(f"Ошибка установки настроек пользователя {user_id}: {str(e)}")
             return False
     
-    # ===== SMILES DATABASE =====
     def init_smiles_db(self):
         """Инициализация базы данных смайлов"""
         db_name = "smiles.db"
@@ -185,7 +186,6 @@ class DatabaseManager:
         
         self.execute_query(db_name, query, commit=True)
         
-        # Добавление смайлов по умолчанию, если таблица пуста
         count = self.execute_query(
             db_name,
             "SELECT COUNT(*) FROM smiles",
@@ -231,7 +231,6 @@ class DatabaseManager:
             logger.error(f"Ошибка добавления смайла: {str(e)}")
             return False
     
-    # ===== AUTOCLEAN DATABASE =====
     def init_autoclean_db(self):
         """Инициализация базы данных автоочистки"""
         db_name = "autoclean.db"
@@ -304,9 +303,7 @@ class DatabaseManager:
             logger.error(f"Ошибка обновления автоочистки: {str(e)}")
             return False
     
-    # ===== QUOTES DATABASE =====
     def init_quotes_db(self):
-        """Инициализация базы данных цитат"""
         db_name = "quotes.db"
         
         query = '''CREATE TABLE IF NOT EXISTS quotes (
@@ -332,7 +329,6 @@ class DatabaseManager:
                 commit=True
             )
             
-            # Получаем ID добавленной цитаты
             quote_id = self.execute_query(
                 "quotes.db",
                 "SELECT last_insert_rowid()",
@@ -353,7 +349,6 @@ class DatabaseManager:
         )
     
     def get_quotes_by_author(self, author_id: int, limit: int = 10) -> List[sqlite3.Row]:
-        """Получение цитат по автору"""
         return self.execute_query(
             "quotes.db",
             "SELECT * FROM quotes WHERE author_id = ? ORDER BY id DESC LIMIT ?",
@@ -371,7 +366,6 @@ class DatabaseManager:
         )
     
     def delete_quote(self, quote_id: int) -> bool:
-        """Удаление цитаты по ID"""
         try:
             self.execute_query(
                 "quotes.db",
@@ -384,7 +378,6 @@ class DatabaseManager:
             logger.error(f"Ошибка удаления цитаты: {str(e)}")
             return False
     
-    # ===== MODULES DATABASE =====
     def init_modules_db(self):
         """Инициализация базы данных модулей"""
         db_name = "modules.db"
@@ -453,11 +446,9 @@ class DatabaseManager:
             logger.error(f"Ошибка изменения состояния модуля {module_name}: {str(e)}")
             return False
 
-# Создаем глобальный экземпляр для использования в модулях
 db_manager = DatabaseManager()
 
 def setup(bot):
     """Функция setup для загрузки модуля"""
-    # Мы не регистрируем команды, так как это сервисный модуль
     bot.db = db_manager
     logger.info("Database Manager инициализирован")

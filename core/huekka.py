@@ -18,7 +18,7 @@ class HuekkaModule:
         
         base_dir = Path(__file__).resolve().parent.parent
         
-        self.image_path = base_dir / "assets" / "image" / "huekka.png"
+        self.image_path = base_dir / "asset" / "image" / "huekka.png"
         
         bot.register_command(
             cmd="huekka",

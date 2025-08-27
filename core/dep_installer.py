@@ -98,6 +98,16 @@ class DependencyInstaller:
         installed = []
         errors = []
         
+        # Проверяем, есть ли зависимости для установки
+        needs_installation = False
+        for import_name in imports:
+            if import_name not in self.standard_libs and not self.is_package_installed(import_name):
+                needs_installation = True
+                break
+        
+        if not needs_installation:
+            return installed, errors  # Пустые списки - зависимости не требуются
+        
         for import_name in imports:
             if import_name in self.standard_libs or self.is_package_installed(import_name):
                 continue

@@ -1,3 +1,9 @@
+# ©️ nnnrodnoy, 2025
+# 💬 @nnnrodnoy
+# This file is part of Huekka
+# 🌐 https://github.com/stepka5/Huekka
+# You can redistribute it and/or modify it under the terms of the MIT License
+# 🔑 https://opensource.org/licenses/MIT
 import os
 import sys
 import shutil
@@ -16,14 +22,11 @@ class Updater:
     async def check_update(self):
         """Проверяет наличие обновлений в репозитории"""
         try:
-            # Создаем временную директорию для клонирования
             temp_dir = tempfile.mkdtemp(prefix="huekka_update_")
             
-            # Клонируем репозиторий
             subprocess.run(['git', 'clone', self.repo_url, temp_dir], 
                          check=True, capture_output=True)
             
-            # Получаем текущий коммит
             current_commit = subprocess.run(
                 ['git', 'rev-parse', 'HEAD'],
                 cwd=os.getcwd(),
@@ -31,7 +34,6 @@ class Updater:
                 text=True
             ).stdout.strip() if os.path.exists('.git') else None
             
-            # Получаем последний коммит из репозитория
             latest_commit = subprocess.run(
                 ['git', 'rev-parse', 'HEAD'],
                 cwd=temp_dir,
@@ -39,10 +41,8 @@ class Updater:
                 text=True
             ).stdout.strip()
             
-            # Удаляем временную директорию
             shutil.rmtree(temp_dir)
             
-            # Сравниваем коммиты
             if current_commit and current_commit != latest_commit:
                 return latest_commit
                 
@@ -52,17 +52,13 @@ class Updater:
             return None
 
     async def perform_update(self):
-        """Выполняет процесс обновления"""
         try:
-            # Создаем временную директорию
             temp_dir = tempfile.mkdtemp(prefix="huekka_update_")
             current_dir = os.getcwd()
             
-            # Клонируем репозиторий
             subprocess.run(['git', 'clone', self.repo_url, temp_dir], 
                          check=True, capture_output=True)
             
-            # Удаляем все кроме исключенных папок
             for item in os.listdir(current_dir):
                 if item not in self.exclude_dirs and not item.startswith('huekka_update_'):
                     item_path = os.path.join(current_dir, item)
@@ -71,7 +67,6 @@ class Updater:
                     elif os.path.isdir(item_path):
                         shutil.rmtree(item_path)
             
-            # Копируем файлы из репозитория
             for item in os.listdir(temp_dir):
                 if item not in self.exclude_dirs:
                     src_path = os.path.join(temp_dir, item)
@@ -82,13 +77,11 @@ class Updater:
                     else:
                         shutil.copy2(src_path, dst_path)
             
-            # Удаляем временную директорию
             shutil.rmtree(temp_dir)
             
             return True
             
         except Exception as e:
-            # В случае ошибки пытаемся восстановить исходное состояние
             if os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir, ignore_errors=True)
             return False
@@ -128,12 +121,10 @@ async def setup(bot):
             
             await msg.edit("‼️ Обновление обнаружено! Начинаю процесс обновления...")
             
-            # Выполняем обновление
             success = await updater.perform_update()
             
             if success:
                 await msg.edit("✅ Обновление успешно установлено! Перезагрузка...")
-                # Добавляем действие перезагрузки
                 bot.add_post_restart_action(lambda: None)
                 await bot.restart()
             else:

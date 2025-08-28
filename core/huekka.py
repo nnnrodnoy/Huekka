@@ -108,11 +108,11 @@ class HuekkaModule:
             await event.edit("[❌](emoji/5210952531676504517) **В сообщении нет премиум-эмодзи!**")
             return
             
-        result = "[▫️](emoji/5370932688993656500) **Premium-Amoji:**\n\n"
+        result = "[▪️](emoji/5818774589714468177) **Premium-Amoji:**\n\n"
         
         for i, (emoji_char, doc_id) in enumerate(custom_emojis, 1):
-            result += f"`MARKDOWN` - `[{emoji_char}](emoji/{doc_id})`\n\n"
-            result += f"`HTML` - `<emoji document_id={doc_id}>{emoji_char}</emoji>`\n\n"
+            result += f"**1.** `MARKDOWN` - `[{emoji_char}](emoji/{doc_id})`\n\n"
+            result += f"**2.** `HTML` - `<emoji document_id={doc_id}>{emoji_char}</emoji>`\n"
         
         await event.edit(result)
 

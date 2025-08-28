@@ -125,7 +125,7 @@ class ConfiguratorModule:
             self.bot.autocleaner.update_settings(enabled=enabled)
             
             status = "включен" if enabled else "выключен"
-            await event.edit(f"[✅](emoji/5206607081334906820) **Автоклинер** {status}!")
+            await event.edit(f"[✅](emoji/5206607081334906820) **Автоклинер** **{status}!**")
         else:
             await event.edit("[❌](emoji/5210952531676504517) **Ошибка при изменении настроек автоклинера!**")
 
@@ -156,7 +156,7 @@ class ConfiguratorModule:
                     hours = delay // 3600
                     time_str = f"{hours} часов"
                 
-                await event.edit(f"[✅](emoji/5206607081334906820) **Задержка автоклинера установлена:** {time_str}")
+                await event.edit(f"[✅](emoji/5206607081334906820) **Задержка автоклинера установлена:** `{time_str}`")
             else:
                 await event.edit("[❌](emoji/5210952531676504517) **Ошибка при установке задержки!**")
                 
@@ -213,7 +213,7 @@ class ConfiguratorModule:
             
             if success:
                 status = "включен" if enabled else "выключен"
-                await event.edit(f"**[✅](emoji/5206607081334906820) Автозапуск** {status}!")
+                await event.edit(f"**[✅](emoji/5206607081334906820) Автозапуск** **{status}!**")
             else:
                 await event.edit("[❌](emoji/5210952531676504517)** Ошибка при изменении настроек автозапуска!**")
                 

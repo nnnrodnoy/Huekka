@@ -90,7 +90,6 @@ class HuekkaModule:
 
     async def cmd_ping(self, event):
         """Обработчик команды .ping"""
-        # Вычисляем пинг на основе времени получения сообщения
         current_time = time.time()
         message_time = event.message.date.timestamp()
         ping_time = round((current_time - message_time) * 1000, 2)

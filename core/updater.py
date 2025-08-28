@@ -18,6 +18,8 @@ class Updater:
         self.bot = bot
         self.repo_url = BotConfig.UPDATER["repo_url"]
         self.exclude_dirs = ['modules', 'session', 'cash', 'logs']
+        self.update_files = ['config.py']
+        self.update_dirs = ['asset', 'arts', 'core']
     
     async def check_update(self):
         """Проверяет наличие обновлений в репозитории"""
@@ -59,23 +61,25 @@ class Updater:
             subprocess.run(['git', 'clone', self.repo_url, temp_dir], 
                          check=True, capture_output=True)
             
-            for item in os.listdir(current_dir):
-                if item not in self.exclude_dirs and not item.startswith('huekka_update_'):
-                    item_path = os.path.join(current_dir, item)
-                    if os.path.isfile(item_path) or os.path.islink(item_path):
-                        os.remove(item_path)
-                    elif os.path.isdir(item_path):
-                        shutil.rmtree(item_path)
+            # Обновляем файлы
+            for file in self.update_files:
+                repo_file = os.path.join(temp_dir, file)
+                local_file = os.path.join(current_dir, file)
+                
+                if os.path.exists(repo_file):
+                    if os.path.exists(local_file):
+                        os.remove(local_file)
+                    shutil.copy2(repo_file, local_file)
             
-            for item in os.listdir(temp_dir):
-                if item not in self.exclude_dirs:
-                    src_path = os.path.join(temp_dir, item)
-                    dst_path = os.path.join(current_dir, item)
-                    
-                    if os.path.isdir(src_path):
-                        shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
-                    else:
-                        shutil.copy2(src_path, dst_path)
+            # Обновляем папки
+            for dir_name in self.update_dirs:
+                repo_dir = os.path.join(temp_dir, dir_name)
+                local_dir = os.path.join(current_dir, dir_name)
+                
+                if os.path.exists(repo_dir):
+                    if os.path.exists(local_dir):
+                        shutil.rmtree(local_dir)
+                    shutil.copytree(repo_dir, local_dir)
             
             shutil.rmtree(temp_dir)
             

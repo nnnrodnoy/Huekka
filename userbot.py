@@ -102,10 +102,8 @@ class UserBot:
         self.command_prefix = self._load_prefix_from_db()
         
         # Загружаем настройки автоклинера из базы данных
-        autoclean_enabled = self.db.get_config_value('autoclean_enabled', 
-                                                   str(BotConfig.AUTOCLEAN["enabled"])).lower() == 'true'
-        autoclean_delay = int(self.db.get_config_value('autoclean_delay', 
-                                                    BotConfig.AUTOCLEAN["default_delay"]))
+        autoclean_enabled = self.db.get_config_value('autoclean_enabled', 'True').lower() == 'true'
+        autoclean_delay = int(self.db.get_config_value('autoclean_delay', '1800'))
         
         self.autocleaner = AutoCleaner(self, enabled=autoclean_enabled, delay=autoclean_delay)
         self.apilimiter = APILimiter(self)
@@ -113,7 +111,7 @@ class UserBot:
     
     def _load_prefix_from_db(self):
         """Загрузка префикса команд из базы данных"""
-        prefix = self.db.get_config_value('command_prefix', self.config.COMMAND_PREFIX)
+        prefix = self.db.get_config_value('command_prefix', '.')
         return prefix
 
     def _init_client(self):

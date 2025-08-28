@@ -105,10 +105,11 @@ class DatabaseManager:
         for query in queries:
             self.execute_query(db_name, query, commit=True)
         
+        # Установка значений по умолчанию
         default_config = [
             ('command_prefix', '.'),
             ('autoclean_enabled', 'True'),
-            ('autoclean_delay', '1800'),
+            ('autoclean_delay', '1800'),  # 30 минут в секундах
             ('language', 'ru'),
             ('timezone', 'UTC+3')
         ]

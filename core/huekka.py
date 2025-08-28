@@ -175,7 +175,7 @@ class HuekkaModule:
                 },
                 {
                     "command": "setamoji",
-                    description="Получить id premium-amoji"
+                    "description": "Получить id premium-amoji"
                 },
                 {
                     "command": "online",

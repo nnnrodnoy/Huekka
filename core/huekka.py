@@ -10,7 +10,9 @@ import time
 from pathlib import Path
 from telethon import events
 from telethon.tl.types import MessageEntityCustomEmoji
+from telethon.errors import MessageNotModifiedError
 from config import BotConfig
+from core.formatters import text, msg
 
 logger = logging.getLogger("UserBot.Huekka")
 
@@ -21,6 +23,7 @@ class HuekkaModule:
         base_dir = Path(__file__).resolve().parent.parent
         
         self.image_path = base_dir / "asset" / "image" / "huekka.png"
+        self.clock_emoji_id = BotConfig.EMOJI_IDS["clock"]
         
         bot.register_command(
             cmd="huekka",
@@ -40,6 +43,13 @@ class HuekkaModule:
             cmd="setamoji",
             handler=self.cmd_setamoji,
             description="Получить маркеры для премиум-эмодзи",
+            module_name="Huekka"
+        )
+        
+        bot.register_command(
+            cmd="online",
+            handler=self.cmd_online,
+            description="Показать время работы бота",
             module_name="Huekka"
         )
         
@@ -116,6 +126,38 @@ class HuekkaModule:
         
         await event.edit(result)
 
+    async def is_premium_user(self, event):
+        try:
+            user = await event.get_sender()
+            return user.premium if hasattr(user, 'premium') else False
+        except Exception:
+            return False
+
+    async def add_to_autoclean(self, message):
+        try:
+            if hasattr(self.bot, 'autocleaner') and self.bot.autocleaner.enabled:
+                await self.bot.autocleaner.schedule_cleanup(message)
+        except Exception as e:
+            logger.error(f"Ошибка добавления в автоочистку: {str(e)}")
+
+    async def cmd_online(self, event):
+        """Обработчик команды .online"""
+        try:
+            is_premium = await self.is_premium_user(event)
+            uptime = text.format_time(time.time() - self.bot.start_time)
+            
+            if is_premium:
+                msg_text = f"[🕒](emoji/{self.clock_emoji_id}) **Время работы:** `{uptime}`"
+            else:
+                msg_text = f"🕒 **Время работы:** `{uptime}`"
+            
+            msg_obj = await event.edit(msg_text)
+            await self.add_to_autoclean(msg_obj)
+        except MessageNotModifiedError:
+            pass
+        except Exception as e:
+            logger.error(f"Ошибка в команде .online: {str(e)}")
+
     def get_module_info(self):
         return {
             "name": "Huekka",
@@ -133,7 +175,11 @@ class HuekkaModule:
                 },
                 {
                     "command": "setamoji",
-                    "description": "Получить id premium-amoji"
+                    description="Получить id premium-amoji"
+                },
+                {
+                    "command": "online",
+                    "description": "Показать время работы бота"
                 }
             ]
         }
@@ -156,6 +202,10 @@ def get_module_info():
             {
                 "command": "setamoji",
                 "description": "Получить id premium-amoji"
+            },
+            {
+                "command": "online",
+                "description": "Показать время работы бота"
             }
         ]
     }

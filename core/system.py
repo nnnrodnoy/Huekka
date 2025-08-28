@@ -25,7 +25,6 @@ class SystemModule:
         self.bot.start_time = time.time()
         
         self.restart_emoji_id = BotConfig.EMOJI_IDS["restart"]
-        self.clock_emoji_id = BotConfig.EMOJI_IDS["clock"]
         
         self.restart_file = Path("cash") / "restart_info.json"
         
@@ -33,13 +32,6 @@ class SystemModule:
             cmd="restart",
             handler=self.cmd_restart,
             description="Перезагрузить бота",
-            module_name="System"
-        )
-        
-        bot.register_command(
-            cmd="online",
-            handler=self.cmd_online,
-            description="Показать время работы бота",
             module_name="System"
         )
         
@@ -66,14 +58,6 @@ class SystemModule:
         @bot.client.on(events.NewMessage(outgoing=True, pattern=rf'^{re.escape(bot.command_prefix)}reboot\b'))
         async def reboot_handler(event):
             await self.cmd_restart(event)
-            
-        @bot.client.on(events.NewMessage(outgoing=True, pattern=rf'^{re.escape(bot.command_prefix)}online\b'))
-        async def online_handler(event):
-            await self.cmd_online(event)
-            
-        @bot.client.on(events.NewMessage(outgoing=True, pattern=rf'^{re.escape(bot.command_prefix)}uptime\b'))
-        async def uptime_handler(event):
-            await self.cmd_online(event)
     
     async def send_restart_complete(self, restart_data):
         try:
@@ -142,23 +126,6 @@ class SystemModule:
                     self.restart_file.unlink()
             except:
                 pass
-
-    async def cmd_online(self, event):
-        try:
-            is_premium = await self.is_premium_user(event)
-            uptime = text.format_time(time.time() - self.bot.start_time)
-            
-            if is_premium:
-                msg_text = f"[🕒](emoji/{self.clock_emoji_id}) **Время работы:** `{uptime}`"
-            else:
-                msg_text = f"🕒 **Время работы:** `{uptime}`"
-            
-            msg_obj = await event.edit(msg_text)
-            await self.add_to_autoclean(msg_obj)
-        except MessageNotModifiedError:
-            pass
-        except Exception as e:
-            logger.error(f"Ошибка в команде .online: {str(e)}")
         
     def get_module_info(self):
         return {
@@ -170,10 +137,6 @@ class SystemModule:
                 {
                     "command": "restart",
                     "description": "Перезагрузить бота"
-                },
-                {
-                    "command": "online",
-                    "description": "Показать время работы бота"
                 }
             ]
         }
@@ -188,10 +151,6 @@ def get_module_info():
             {
                 "command": "restart",
                 "description": "Перезагрузить бота"
-            },
-            {
-                "command": "online",
-                "description": "Показать время работы бота"
             }
         ]
     }

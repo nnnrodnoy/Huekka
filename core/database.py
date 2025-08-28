@@ -26,7 +26,6 @@ class DatabaseManager:
         self.init_config_db()
         self.init_smiles_db()
         self.init_autoclean_db()
-        self.init_quotes_db()
         self.init_modules_db()
     
     def get_db_path(self, db_name: str) -> str:
@@ -302,81 +301,6 @@ class DatabaseManager:
             return True
         except Exception as e:
             logger.error(f"Ошибка обновления автоочистки: {str(e)}")
-            return False
-    
-    def init_quotes_db(self):
-        db_name = "quotes.db"
-        
-        query = '''CREATE TABLE IF NOT EXISTS quotes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            text TEXT NOT NULL,
-            author_id INTEGER NOT NULL,
-            author_name TEXT NOT NULL,
-            date_added INTEGER NOT NULL,
-            tags TEXT DEFAULT '',
-            likes INTEGER DEFAULT 0,
-            dislikes INTEGER DEFAULT 0
-        )'''
-        
-        self.execute_query(db_name, query, commit=True)
-    
-    def add_quote(self, text: str, author_id: int, author_name: str) -> int:
-        """Добавление новой цитаты"""
-        try:
-            result = self.execute_query(
-                "quotes.db",
-                "INSERT INTO quotes (text, author_id, author_name, date_added) VALUES (?, ?, ?, ?)",
-                (text, author_id, author_name, int(datetime.now().timestamp())),
-                commit=True
-            )
-            
-            quote_id = self.execute_query(
-                "quotes.db",
-                "SELECT last_insert_rowid()",
-                fetchone=True
-            )
-            
-            return quote_id[0] if quote_id else 0
-        except Exception as e:
-            logger.error(f"Ошибка добавления цитаты: {str(e)}")
-            return 0
-    
-    def get_random_quote(self) -> Optional[sqlite3.Row]:
-        """Получение случайной цитаты"""
-        return self.execute_query(
-            "quotes.db",
-            "SELECT * FROM quotes ORDER BY RANDOM() LIMIT 1",
-            fetchone=True
-        )
-    
-    def get_quotes_by_author(self, author_id: int, limit: int = 10) -> List[sqlite3.Row]:
-        return self.execute_query(
-            "quotes.db",
-            "SELECT * FROM quotes WHERE author_id = ? ORDER BY id DESC LIMIT ?",
-            (author_id, limit),
-            fetchall=True
-        )
-    
-    def search_quotes(self, search_text: str, limit: int = 10) -> List[sqlite3.Row]:
-        """Поиск цитат по тексту"""
-        return self.execute_query(
-            "quotes.db",
-            "SELECT * FROM quotes WHERE text LIKE ? LIMIT ?",
-            (f"%{search_text}%", limit),
-            fetchall=True
-        )
-    
-    def delete_quote(self, quote_id: int) -> bool:
-        try:
-            self.execute_query(
-                "quotes.db",
-                "DELETE FROM quotes WHERE id = ?",
-                (quote_id,),
-                commit=True
-            )
-            return True
-        except Exception as e:
-            logger.error(f"Ошибка удаления цитаты: {str(e)}")
             return False
     
     def init_modules_db(self):

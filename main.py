@@ -16,6 +16,7 @@ import secrets
 import shutil
 import tempfile
 import subprocess
+import random
 from pathlib import Path
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
@@ -44,8 +45,8 @@ class Colors:
 class Updater:
     def __init__(self):
         self.repo_url = "https://github.com/nnnrodnoy/Huekka"
-        self.update_files = ['main.py', 'userbot.py', 'installer.sh', 'start_bot.sh', 'requirements.txt']
-        self.update_dirs = ['core']
+        self.update_files = ['main.py', 'userbot.py', 'installer.sh', 'start_bot.sh', 'requirements.txt', 'config.py']
+        self.update_dirs = ['core', 'asset', 'arts']
     
     def run_command(self, cmd, cwd=None):
         """Выполняет команду и возвращает результат"""
@@ -189,13 +190,20 @@ class SessionManager:
         
         return base64.b64encode(salt + iv + encrypted).decode()
 
-def print_mishka_art():
-    """Выводит ASCII арт мишки из файла с обработкой цветов и символов"""
-    art_path = Path("arts") / "mishka.txt"
-    
-    if not art_path.exists():
+def print_random_art():
+    """Выводит случайный ASCII арт из папки arts"""
+    arts_dir = Path("arts")
+    if not arts_dir.exists():
         return False
         
+    # Получаем все txt файлы в папке arts
+    art_files = list(arts_dir.glob("*.txt"))
+    if not art_files:
+        return False
+        
+    # Выбираем случайный файл
+    art_file = random.choice(art_files)
+    
     try:
         # Символы фона, которые нужно заменить на пробелы
         BACKGROUND_CHARS = {
@@ -213,7 +221,7 @@ def print_mishka_art():
                 text = text.replace(char, ' ')
             return f"\033[38;2;{int(hex_color[0:2], 16)};{int(hex_color[2:4], 16)};{int(hex_color[4:6], 16)}m{text}"
         
-        with open(art_path, 'r', encoding='utf-8') as f:
+        with open(art_file, 'r', encoding='utf-8') as f:
             for line in f:
                 # Убираем символ перевода строки
                 stripped_line = line.rstrip('\n')
@@ -246,7 +254,13 @@ def clear_screen():
 def show_welcome():
     """Очищает экран и показывает приветственное сообщение"""
     clear_screen()
-    print_mishka_art()
+    if not print_random_art():
+        # Если не удалось показать случайный арт, показываем мишку
+        art_path = Path("arts") / "mishka.txt"
+        if art_path.exists():
+            with open(art_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    print(line, end='')
     print(f"{Colors.DARK_VIOLET}{Colors.BOLD}Huekka is started!{Colors.ENDC}")
 
 async def setup_session():

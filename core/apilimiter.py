@@ -93,8 +93,8 @@ class APILimiter:
                     if current_time - t < self.time_sample
                 ]
                 
-                # Проверяем превышение порога
-                if len(self._ratelimiter) > self.threshold:
+                # **Проверяем превышение порога ЗА ВРЕМЯ**
+                if len([t for name, t in self._ratelimiter if current_time - t < self.time_sample]) > self.threshold:
                     # Создаем событие кулдауна
                     if not self._cooldown_event:
                         self._cooldown_event = asyncio.Event()

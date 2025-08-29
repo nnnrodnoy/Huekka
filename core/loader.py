@@ -1,3 +1,4 @@
+
 # ©️ nnnrodnoy, 2025
 # 💬 @nnnrodnoy
 # This file is part of Huekka
@@ -67,31 +68,37 @@ class LoaderModule:
 
     async def find_module_info(self, module_name):
         normalized_query = module_name.lower().strip()
-        
+        logger.info(f"Поиск информации о модуле: {module_name}, нормализованный запрос: {normalized_query}")
+
         if module_name in self.bot.modules:
+            logger.info(f"Модуль {module_name} найден в self.bot.modules напрямую")
             return module_name, await self.get_module_info(module_name)
-        
+
         for name in self.bot.modules.keys():
             if name.lower() == normalized_query:
+                logger.info(f"Модуль {name} найден в self.bot.modules после нормализации")
                 return name, await self.get_module_info(name)
-        
+
         file_name = normalized_query.replace('.py', '')
         for name in self.bot.modules.keys():
             if name.lower() == file_name:
+                logger.info(f"Модуль {name} найден в self.bot.modules после удаления .py и нормализации")
                 return name, await self.get_module_info(name)
-        
+
         closest = difflib.get_close_matches(
             normalized_query,
             [name.lower() for name in self.bot.modules.keys()],
             n=1,
             cutoff=0.3
         )
-        
+
         if closest:
             for name in self.bot.modules.keys():
                 if name.lower() == closest[0]:
+                    logger.info(f"Модуль {name} найден как ближайшее совпадение: {closest[0]}")
                     return name, await self.get_module_info(name)
-        
+
+        logger.warning(f"Модуль {module_name} не найден в self.bot.modules")
         return None, None
 
     def find_module_file(self, query):
@@ -103,6 +110,8 @@ class LoaderModule:
 
         files = [f for f in modules_dir.iterdir() if f.is_file() and f.suffix == '.py']
         file_names = [f.stem for f in files]
+
+        logger.info(f"Найденные файлы модулей: {file_names}")  # Добавляем логирование
 
         for name in file_names:
             if name.lower() == normalized_query:
@@ -334,26 +343,23 @@ class LoaderModule:
                 pass
 
     async def unload_module(self, event):
-        logger.info("Начало выгрузки модуля...")
-        prefix = self.bot.command_prefix
-        
-        args = event.text.split()
-        if len(args) < 2:
-            await event.edit(f"ℹ️ **Укажите название модуля:** `{prefix}ulm ModuleName`")
+        module_query = " ".join(event.text.split()[1:]).strip()
+        logger.info(f"Попытка выгрузить модуль: {module_query}")
+
+        if module_query in self.bot.modules:
+            logger.info(f"Модуль {module_query} найден в self.bot.modules")
+        else:
+            logger.warning(f"Модуль {module_query} НЕ найден в self.bot.modules")
+            await event.edit(f"Модуль {module_query} не найден.")  # Сообщаем пользователю, что модуль не найден
             return
 
-        module_query = " ".join(args[1:]).strip()
-        logger.info(f"Поиск модуля для выгрузки: {module_query}")
-        
-        # Сначала ищем среди загруженных модулей
+
+        prefix = self.bot.command_prefix
+
+        logger.info(f"Перед вызовом find_module_info с запросом {module_query}")
         found_name, module_info = await self.find_module_info(module_query)
-        logger.info(f"Результат поиска модуля: {found_name}, {module_info}")
-        
-        # Если не нашли, ищем файл модуля
-        if not found_name:
-            found_name = self.find_module_file(module_query)
-            logger.info(f"Поиск файла модуля: {found_name}")
-        
+        logger.info(f"После вызова find_module_info: found_name={found_name}, module_info={module_info}")
+
         if not found_name:
             error_msg = msg.error(f"Модуль `{module_query}` не найден")
             await event.edit(error_msg)
@@ -361,9 +367,9 @@ class LoaderModule:
 
         module_path = f"modules/{found_name}.py"
         logger.info(f"Путь к модулю: {module_path}")
-        
+
         if not os.path.exists(module_path):
-            error_msg = msg.error(f"Модуль `{found_name}` не найден")
+            error_msg = msg.error(f"Файл модуля `{found_name}` не найден")
             await event.edit(error_msg)
             return
 
@@ -374,22 +380,22 @@ class LoaderModule:
         async def unload_module_task():
             logger.info("Начало задачи выгрузки модуля...")
             start_time = time.time()
-            
+
             # Удаляем команды только если модуль загружен
             if found_name in self.bot.modules:
                 logger.info(f"Модуль найден в bot.modules: {found_name}")
                 commands_to_remove = [
-                    cmd for cmd, data in self.bot.commands.items() 
+                    cmd for cmd, data in self.bot.commands.items()
                     if data.get("module") and data.get("module").lower() == found_name.lower()
                 ]
                 logger.info(f"Команды для удаления: {commands_to_remove}")
-                
+
                 for cmd in commands_to_remove:
                     logger.info(f"Удаление команды: {cmd}")
                     del self.bot.commands[cmd]
             else:
                 logger.info(f"Модуль не найден в bot.modules: {found_name}")
-            
+
             # Удаляем из sys.modules если есть
             if found_name in sys.modules:
                 logger.info(f"Удаление модуля из sys.modules: {found_name}")
@@ -400,14 +406,14 @@ class LoaderModule:
                     logger.error(f"Ошибка при удалении модуля из sys.modules: {str(e)}")
             else:
                 logger.info(f"Модуль не найден в sys.modules: {found_name}")
-            
+
             # Удаляем файл
             try:
                 os.remove(module_path)
                 logger.info(f"Файл модуля успешно удален: {module_path}")
             except Exception as e:
                 logger.error(f"Ошибка при удалении файла модуля: {str(e)}")
-            
+
             # Удаляем из bot.modules если есть
             if found_name in self.bot.modules:
                 logger.info(f"Удаление модуля из bot.modules: {found_name}")
@@ -415,7 +421,7 @@ class LoaderModule:
                 logger.info(f"Модуль успешно удален из bot.modules: {found_name}")
             else:
                 logger.info(f"Модуль не найден в bot.modules: {found_name}")
-            
+
             # Удаляем описание модуля если есть
             if found_name in self.bot.module_descriptions:
                 logger.info(f"Удаление описания модуля: {found_name}")
@@ -423,11 +429,11 @@ class LoaderModule:
                 logger.info(f"Описание модуля успешно удалено: {found_name}")
             else:
                 logger.info(f"Описание модуля не найдено: {found_name}")
-            
+
             elapsed = time.time() - start_time
             if elapsed < self.min_animation_time:
                 await asyncio.sleep(self.min_animation_time - elapsed)
-            
+
             logger.info("Задача выгрузки модуля завершена.")
             return loader_format.format_unloaded_message(
                 found_name, is_premium, self.info_emoji_id, self.bot.command_prefix

@@ -19,42 +19,31 @@ class BotConfig:
     STOCK_MODULES = ["Help", "System", "Loader", "Updater", "Configurator", 
                      "AutoCleaner"]
     
-    # Настройки APILimiter (статичные)
-    API_LIMITER = {
-        "time_sample": 60,       # 60-секундное окно
-        "threshold": 90,         # 90 запросов в минуту (оптимально)
-        "local_floodwait": 60,   # 30-секундная блокировка
-        "monitored_groups": [    # Группы методов для мониторинга
-            "account", "auth", "bots", "channels", "contacts", "folders", 
-            "help", "langpack", "messages", "payments", "phone", "photos", 
-            "stickers", "updates", "upload", "users", "stats", "invites",
-            "messages", "updates", "photos", "help", "channels", "phone",
-            "langpack", "folders", "stats", "bots", "stickers", "payments"
-        ],
-        "forbidden_methods": [   # Запрещенные методы
-            "channels.joinChannel", "messages.importChatInvite",
-            "contacts.addContact", "account.deleteAccount",
-            "channels.deleteChannel", "messages.sendInlineBotResult"
-        ]
-    }
+# Настройки APILimiter
+API_LIMITER = {
+    # Ограничение скорости (Rate Limiting)
+    "rate_time_sample": 60,       # 60-секундное окно
+    "rate_threshold": 90,         # 90 запросов в минуту (оптимально)
+    "rate_cooldown_duration": 60, # 60-секундная блокировка при превышении rate
     
-    # Настройки загрузчика модулей (статичные)
-    LOADER = {
-        "min_animation_time": 2.0,    # Минимальное время анимации (сек)
-        "delete_delay": 50             # Задержка удаления сообщений (сек)
-    }
+    # Общее ограничение (Burst Limiting)
+    "burst_max_requests": 10,     # Максимум 10 запросов подряд
+    "burst_cooldown_duration": 2, # 2-секундная пауза после burst
     
-    # Настройки для Updater (статичные)
-    UPDATER = {
-        "repo_url": "https://github.com/stepka5/Huekka",
-        "system_files": [        # Файлы для проверки обновлений
-            "main.py",
-            "userbot.py",
-            "core/parser.py",
-            "core/__init__.py"
-        ],
-        "min_display_time": 2.0  # Минимальное время отображения сообщения
-    }
+    # Общие настройки
+    "monitored_groups": [    # Группы методов для мониторинга
+        "account", "auth", "bots", "channels", "contacts", "folders", 
+        "help", "langpack", "messages", "payments", "phone", "photos", 
+        "stickers", "updates", "upload", "users", "stats", "invites",
+        "messages", "updates", "photos", "help", "channels", "phone",
+        "langpack", "folders", "stats", "bots", "stickers", "payments"
+    ],
+    "forbidden_methods": [   # Запрещенные методы
+        "channels.joinChannel", "messages.importChatInvite",
+        "contacts.addContact", "account.deleteAccount",
+        "channels.deleteChannel", "messages.sendInlineBotResult"
+    ]
+}
     
     # Настройки для автоочистки (ТОЛЬКО значения по умолчанию)
     AUTOCLEAN = {

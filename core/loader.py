@@ -334,6 +334,7 @@ class LoaderModule:
                 pass
 
     async def unload_module(self, event):
+        logger.info("Начало выгрузки модуля...")
         prefix = self.bot.command_prefix
         
         args = event.text.split()
@@ -342,13 +343,16 @@ class LoaderModule:
             return
 
         module_query = " ".join(args[1:]).strip()
+        logger.info(f"Поиск модуля для выгрузки: {module_query}")
         
         # Сначала ищем среди загруженных модулей
         found_name, module_info = await self.find_module_info(module_query)
+        logger.info(f"Результат поиска модуля: {found_name}, {module_info}")
         
         # Если не нашли, ищем файл модуля
         if not found_name:
             found_name = self.find_module_file(module_query)
+            logger.info(f"Поиск файла модуля: {found_name}")
         
         if not found_name:
             error_msg = msg.error(f"Модуль `{module_query}` не найден")
@@ -356,6 +360,7 @@ class LoaderModule:
             return
 
         module_path = f"modules/{found_name}.py"
+        logger.info(f"Путь к модулю: {module_path}")
         
         if not os.path.exists(module_path):
             error_msg = msg.error(f"Модуль `{found_name}` не найден")
@@ -367,37 +372,63 @@ class LoaderModule:
 
         # Используем анимацию для выгрузки модуля
         async def unload_module_task():
+            logger.info("Начало задачи выгрузки модуля...")
             start_time = time.time()
             
             # Удаляем команды только если модуль загружен
             if found_name in self.bot.modules:
+                logger.info(f"Модуль найден в bot.modules: {found_name}")
                 commands_to_remove = [
                     cmd for cmd, data in self.bot.commands.items() 
                     if data.get("module") and data.get("module").lower() == found_name.lower()
                 ]
+                logger.info(f"Команды для удаления: {commands_to_remove}")
                 
                 for cmd in commands_to_remove:
+                    logger.info(f"Удаление команды: {cmd}")
                     del self.bot.commands[cmd]
+            else:
+                logger.info(f"Модуль не найден в bot.modules: {found_name}")
             
             # Удаляем из sys.modules если есть
             if found_name in sys.modules:
-                del sys.modules[found_name]
+                logger.info(f"Удаление модуля из sys.modules: {found_name}")
+                try:
+                    del sys.modules[found_name]
+                    logger.info(f"Модуль успешно удален из sys.modules: {found_name}")
+                except Exception as e:
+                    logger.error(f"Ошибка при удалении модуля из sys.modules: {str(e)}")
+            else:
+                logger.info(f"Модуль не найден в sys.modules: {found_name}")
             
             # Удаляем файл
-            os.remove(module_path)
+            try:
+                os.remove(module_path)
+                logger.info(f"Файл модуля успешно удален: {module_path}")
+            except Exception as e:
+                logger.error(f"Ошибка при удалении файла модуля: {str(e)}")
             
             # Удаляем из bot.modules если есть
             if found_name in self.bot.modules:
+                logger.info(f"Удаление модуля из bot.modules: {found_name}")
                 del self.bot.modules[found_name]
+                logger.info(f"Модуль успешно удален из bot.modules: {found_name}")
+            else:
+                logger.info(f"Модуль не найден в bot.modules: {found_name}")
             
             # Удаляем описание модуля если есть
             if found_name in self.bot.module_descriptions:
+                logger.info(f"Удаление описания модуля: {found_name}")
                 del self.bot.module_descriptions[found_name]
+                logger.info(f"Описание модуля успешно удалено: {found_name}")
+            else:
+                logger.info(f"Описание модуля не найдено: {found_name}")
             
             elapsed = time.time() - start_time
             if elapsed < self.min_animation_time:
                 await asyncio.sleep(self.min_animation_time - elapsed)
             
+            logger.info("Задача выгрузки модуля завершена.")
             return loader_format.format_unloaded_message(
                 found_name, is_premium, self.info_emoji_id, self.bot.command_prefix
             )

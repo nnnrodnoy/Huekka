@@ -16,6 +16,7 @@ from telethon.errors import MessageNotModifiedError
 import traceback
 import time
 import random
+import re
 from config import BotConfig
 from core.formatters import loader_format, msg
 
@@ -65,26 +66,39 @@ class LoaderModule:
             logger.error(f"Ошибка получения информации о пользователе: {str(e)}")
             return {"premium": False, "username": "unknown"}
 
+    def _camel_to_snake(self, name):
+        """Преобразует CamelCase в snake_case"""
+        name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+        return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
+
+    def _module_name_to_filename(self, module_name):
+        """Преобразует имя модуля в предполагаемое имя файла"""
+        # Пробуем разные варианты именования
+        variants = [
+            module_name.lower() + '.py',
+            self._camel_to_snake(module_name) + '.py',
+            module_name + '.py'
+        ]
+        return variants
+
     async def find_module_info(self, module_name):
         normalized_query = module_name.lower().strip()
         
+        # Сначала проверяем точное совпадение
         if module_name in self.bot.modules:
             return module_name, await self.get_module_info(module_name)
         
+        # Ищем без учета регистра
         for name in self.bot.modules.keys():
             if name.lower() == normalized_query:
                 return name, await self.get_module_info(name)
         
-        file_name = normalized_query.replace('.py', '')
-        for name in self.bot.modules.keys():
-            if name.lower() == file_name:
-                return name, await self.get_module_info(name)
-        
+        # Ищем по частичному совпадению
         closest = difflib.get_close_matches(
             normalized_query,
             [name.lower() for name in self.bot.modules.keys()],
             n=1,
-            cutoff=0.3
+            cutoff=0.6  # Более низкий порог для частичного совпадения
         )
         
         if closest:
@@ -109,18 +123,24 @@ class LoaderModule:
             if file.stem.lower() == normalized_query:
                 return file
 
-        # Поиск похожих
+        # Частичное совпадение (70% сходства)
         closest = difflib.get_close_matches(
             normalized_query,
             [f.stem.lower() for f in files],
             n=1,
-            cutoff=0.3
+            cutoff=0.7  # 70% сходства
         )
         
         if closest:
             for file in files:
                 if file.stem.lower() == closest[0]:
                     return file
+        
+        # Попробуем найти файл с преобразованием CamelCase to snake_case
+        snake_case_name = self._camel_to_snake(normalized_query)
+        for file in files:
+            if file.stem.lower() == snake_case_name:
+                return file
         
         return None
 
@@ -372,21 +392,24 @@ class LoaderModule:
             return
 
         if not module_path:
-            module_path = Path("modules") / f"{found_name}.py"
-
-        # Проверяем существование файла (без учета регистра)
-        if not module_path.exists():
-            # Ищем файл с другим регистром
+            # Пробуем разные варианты имен файлов
+            possible_filenames = self._module_name_to_filename(found_name)
             modules_dir = Path("modules").resolve()
-            for file in modules_dir.iterdir():
-                if (file.is_file() and file.suffix == '.py' and 
-                    file.stem.lower() == found_name.lower()):
-                    module_path = file
+            
+            for filename in possible_filenames:
+                possible_path = modules_dir / filename
+                if possible_path.exists():
+                    module_path = possible_path
                     break
             else:
-                error_msg = msg.error(f"Файл модуля `{found_name}` не найден")
-                await event.edit(error_msg)
-                return
+                # Если файл не найден, попробуем найти по частичному совпадению
+                module_path = self.find_module_file(found_name)
+
+        # Проверяем существование файла
+        if not module_path or not module_path.exists():
+            error_msg = msg.error(f"Файл модуля `{found_name}` не найден")
+            await event.edit(error_msg)
+            return
 
         # Проверяем, является ли модуль core-модулем
         if found_name in self.bot.core_modules:

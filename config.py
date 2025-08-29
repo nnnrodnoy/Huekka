@@ -5,49 +5,70 @@
 # You can redistribute it and/or modify it under the terms of the MIT License
 # 🔑 https://opensource.org/licenses/MIT
 class BotConfig:
-    # Основные настройки бота (статичные)
-    OWNER_ID = 0          # ID владельца бота (не изменяется)
+    # Основные настройки бота
+    COMMAND_PREFIX = "."  # Префикс команд по умолчанию
+    OWNER_ID = 0          # ID владельца бота
     LOG_LEVEL = "INFO"    # Уровень логирования
     VERSION = "1.1.0"     # Версия бота
     GITHUB_URL = "https://github.com/stepka5/Huekka"
     
-    # Список основных модулей ядра (статичный)
+    # Список основных модулей ядра
     CORE_MODULES = ["Help", "System", "Loader", "Updater", "Configurator", 
                     "AutoCleaner", "LimiterTest", "DependencyInstaller"]
     
-    # Список стандартных модулей для help (статичный)
+    # Список стандартных модулей для help
     STOCK_MODULES = ["Help", "System", "Loader", "Updater", "Configurator", 
                      "AutoCleaner"]
     
-# Настройки APILimiter
-API_LIMITER = {
-    # Ограничение скорости (Rate Limiting)
-    "rate_time_sample": 60,       # 60-секундное окно
-    "rate_threshold": 90,         # 90 запросов в минуту (оптимально)
-    "rate_cooldown_duration": 60, # 60-секундная блокировка при превышении rate
+    # Настройки APILimiter с двумя типами ограничений
+    API_LIMITER = {
+        # Ограничение скорости (Rate Limiting)
+        "rate_time_sample": 60,       # 60-секундное окно
+        "rate_threshold": 90,         # 90 запросов в минуту (оптимально)
+        "rate_cooldown_duration": 60, # 60-секундная блокировка при превышении rate
+        
+        # Общее ограничение (Burst Limiting)
+        "burst_max_requests": 10,     # Максимум 10 запросов подряд
+        "burst_cooldown_duration": 2, # 2-секундная пауза после burst
+        
+        # Общие настройки
+        "monitored_groups": [    # Группы методов для мониторинга
+            "account", "auth", "bots", "channels", "contacts", "folders", 
+            "help", "langpack", "messages", "payments", "phone", "photos", 
+            "stickers", "updates", "upload", "users", "stats", "invites",
+            "messages", "updates", "photos", "help", "channels", "phone",
+            "langpack", "folders", "stats", "bots", "stickers", "payments"
+        ],
+        "forbidden_methods": [   # Запрещенные методы
+            "channels.joinChannel", "messages.importChatInvite",
+            "contacts.addContact", "account.deleteAccount",
+            "channels.deleteChannel", "messages.sendInlineBotResult"
+        ]
+    }
     
-    # Общее ограничение (Burst Limiting)
-    "burst_max_requests": 10,     # Максимум 10 запросов подряд
-    "burst_cooldown_duration": 2, # 2-секундная пауза после burst
+    # Настройки загрузчика модулей
+    LOADER = {
+        "min_animation_time": 2.0,    # Минимальное время анимации (сек)
+        "delete_delay": 50             # Задержка удаления сообщений (сек)
+    }
     
-    # Общие настройки
-    "monitored_groups": [    # Группы методов для мониторинга
-        "account", "auth", "bots", "channels", "contacts", "folders", 
-        "help", "langpack", "messages", "payments", "phone", "photos", 
-        "stickers", "updates", "upload", "users", "stats", "invites",
-        "messages", "updates", "photos", "help", "channels", "phone",
-        "langpack", "folders", "stats", "bots", "stickers", "payments"
-    ],
-    "forbidden_methods": [   # Запрещенные методы
-        "channels.joinChannel", "messages.importChatInvite",
-        "contacts.addContact", "account.deleteAccount",
-        "channels.deleteChannel", "messages.sendInlineBotResult"
-    ]
-}
+    # Настройки для Updater
+    UPDATER = {
+        "repo_url": "https://github.com/stepka5/Huekka",
+        "system_files": [        # Файлы для проверки обновлений
+            "main.py",
+            "userbot.py",
+            "core/parser.py",
+            "core/__init__.py"
+        ],
+        "min_display_time": 2.0  # Минимальное время отображения сообщения
+    }
     
-    # Настройки для автоочистки (ТОЛЬКО значения по умолчанию)
+    # Настройки для автоочистки
     AUTOCLEAN = {
-        "tracked_commands": [    # Шаблоны команд для автоочистки (статичные)
+        "enabled": True,         # Включена по умолчанию
+        "default_delay": 1800,   # 30 минут в секундах
+        "tracked_commands": [    # Шаблоны команд для автоочистки
             r'^{}\s*(ulm|unload)\b',
             r'^{}\s*lm\b',
             r'^{}\s*(help|h|помощь)\b',
@@ -59,7 +80,7 @@ API_LIMITER = {
         ]
     }
     
-    # ID эмодзи для различных статусов (статичные)
+    # ID эмодзи для различных статусов
     EMOJI_IDS = {
         "loader": 4904936030232117798,    # ⚙️
         "loaded": 5422360919453756368,    # 🌘
@@ -77,24 +98,24 @@ API_LIMITER = {
         "check": 5377520790868603876      # 👁️ (или другой для check)
     }
     
-    # Смайлики по умолчанию (статичные)
+    # Смайлики по умолчанию
     DEFAULT_SMILES = [
         "╰(^∇^)╯", "(〜￣▽￣)〜", "٩(◕‿◕｡)۶", "ヾ(＾-＾)ノ", 
         "ʕ•́ᴥ•̀ʔっ", "(◠‿◠✿)", "(◕ω◕✿)", "(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧", 
         "♡(˃͈ દ ˂͈ ༶ )", "ヽ(♡‿♡)ノ"
     ]
     
-    # Настройки для System модуля (статичные)
+    # Настройки для System модуля
     SYSTEM = {
         "info_file": "core/information.txt"  # Файл с информацией о боте
     }
     
-    # Настройки для парсера (статичные)
+    # Настройки для парсера
     PARSER = {
         "max_message_length": 4096  # Максимальная длина сообщения
     }
     
-    # Маппинг импортов на имена пакетов pip (статичный)
+    # Маппинг импортов на имена пакетов pip
     PACKAGE_MAPPING = {
         'PIL': 'pillow',
         'cv2': 'opencv-python',

@@ -20,16 +20,16 @@ class BotConfig:
     STOCK_MODULES = ["Help", "System", "Loader", "Updater", "Configurator", 
                      "AutoCleaner"]
     
-    # Настройки APILimiter с двумя типами ограничений
+    # Настройки APILimiter с новой логикой ограничений
     API_LIMITER = {
-        # Ограничение скорости (Rate Limiting)
-        "rate_time_sample": 60,       # 60-секундное окно
-        "rate_threshold": 90,         # 90 запросов в минуту (оптимально)
-        "rate_cooldown_duration": 60, # 60-секундная блокировка при превышении rate
+        # Ограничение по количеству запросов
+        "requests_per_period": 100,    # 100 запросов за период
+        "period_duration": 60,         # Период в 60 секунд
+        "cooldown_after_period": 60,   # 60-секундная блокировка после 100 запросов
         
-        # Общее ограничение (Burst Limiting)
-        "burst_max_requests": 10,     # Максимум 10 запросов подряд
-        "burst_cooldown_duration": 2, # 2-секундная пауза после burst
+        # Ограничение по скорости (запросов в секунду)
+        "max_requests_per_second": 10, # Максимум 10 запросов в секунду
+        "high_load_cooldown": 30,      # 30-секундная блокировка при превышении скорости
         
         # Общие настройки
         "monitored_groups": [    # Группы методов для мониторинга

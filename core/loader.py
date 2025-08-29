@@ -96,14 +96,15 @@ class LoaderModule:
 
     def find_module_file(self, query):
         normalized_query = query.lower().strip().replace('.py', '')
-        modules_dir = Path("modules")
+        modules_dir = Path("modules").resolve()
         
         if not modules_dir.exists():
+            logger.error(f"Директория модулей не найдена: {modules_dir}")
             return None
 
         files = [f for f in modules_dir.iterdir() if f.is_file() and f.suffix == '.py']
         
-        # Точное совпадение
+        # Точное совпадение (без учета регистра)
         for file in files:
             if file.stem.lower() == normalized_query:
                 return file
@@ -373,10 +374,19 @@ class LoaderModule:
         if not module_path:
             module_path = Path("modules") / f"{found_name}.py"
 
+        # Проверяем существование файла (без учета регистра)
         if not module_path.exists():
-            error_msg = msg.error(f"Файл модуля `{found_name}` не найден")
-            await event.edit(error_msg)
-            return
+            # Ищем файл с другим регистром
+            modules_dir = Path("modules").resolve()
+            for file in modules_dir.iterdir():
+                if (file.is_file() and file.suffix == '.py' and 
+                    file.stem.lower() == found_name.lower()):
+                    module_path = file
+                    break
+            else:
+                error_msg = msg.error(f"Файл модуля `{found_name}` не найден")
+                await event.edit(error_msg)
+                return
 
         user_info = await self.get_user_info(event)
         is_premium = user_info["premium"]

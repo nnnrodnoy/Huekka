@@ -388,6 +388,12 @@ class LoaderModule:
                 await event.edit(error_msg)
                 return
 
+        # Проверяем, является ли модуль core-модулем
+        if found_name in self.bot.core_modules:
+            error_msg = msg.error(f"Модуль `{found_name}` является системным и не может быть выгружен")
+            await event.edit(error_msg)
+            return
+
         user_info = await self.get_user_info(event)
         is_premium = user_info["premium"]
 

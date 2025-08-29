@@ -102,21 +102,24 @@ class LoaderModule:
             return None
 
         files = [f for f in modules_dir.iterdir() if f.is_file() and f.suffix == '.py']
-        file_names = [f.stem for f in files]
+        
+        # Точное совпадение
+        for file in files:
+            if file.stem.lower() == normalized_query:
+                return file
 
-        for name in file_names:
-            if name.lower() == normalized_query:
-                return name
-
+        # Поиск похожих
         closest = difflib.get_close_matches(
             normalized_query,
-            [name.lower() for name in file_names],
+            [f.stem.lower() for f in files],
             n=1,
             cutoff=0.3
         )
         
         if closest:
-            return closest[0]
+            for file in files:
+                if file.stem.lower() == closest[0]:
+                    return file
         
         return None
 
@@ -346,19 +349,32 @@ class LoaderModule:
         # Сначала ищем среди загруженных модулей
         found_name, module_info = await self.find_module_info(module_query)
         
+        module_path = None
         # Если не нашли, ищем файл модуля
         if not found_name:
-            found_name = self.find_module_file(module_query)
-        
+            found_file = self.find_module_file(module_query)
+            if found_file:
+                # Проверяем, может быть модуль загружен под другим регистром?
+                for loaded_name in self.bot.modules.keys():
+                    if loaded_name.lower() == found_file.stem.lower():
+                        found_name = loaded_name
+                        module_info = await self.get_module_info(found_name)
+                        break
+                else:
+                    found_name = found_file.stem
+
+                module_path = found_file
+
         if not found_name:
             error_msg = msg.error(f"Модуль `{module_query}` не найден")
             await event.edit(error_msg)
             return
 
-        module_path = f"modules/{found_name}.py"
-        
-        if not os.path.exists(module_path):
-            error_msg = msg.error(f"Модуль `{found_name}` не найден")
+        if not module_path:
+            module_path = Path("modules") / f"{found_name}.py"
+
+        if not module_path.exists():
+            error_msg = msg.error(f"Файл модуля `{found_name}` не найден")
             await event.edit(error_msg)
             return
 

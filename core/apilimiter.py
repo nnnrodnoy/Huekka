@@ -18,31 +18,34 @@ class APILimiter:
     def __init__(self, bot):
         self.bot = bot
         
-        # Для ограничения скорости (Rate Limiting)
-        self._rate_requests = deque()
-        self._rate_lock = asyncio.Lock()
-        self._rate_cooldown = None
+        # Для ограничения по количеству запросов
+        self._period_requests = deque()
+        self._period_lock = asyncio.Lock()
+        self._period_cooldown = None
         
-        # Для общего ограничения (Burst Limiting)
-        self._burst_requests = deque()
-        self._burst_lock = asyncio.Lock()
-        self._burst_cooldown = None
+        # Для ограничения по скорости
+        self._speed_requests = deque()
+        self._speed_lock = asyncio.Lock()
+        self._speed_cooldown = None
         
         # Настройки из конфига
         api_limiter_config = BotConfig.API_LIMITER
-        self.rate_time_sample = api_limiter_config["rate_time_sample"]
-        self.rate_threshold = api_limiter_config["rate_threshold"]
-        self.rate_cooldown_duration = api_limiter_config["rate_cooldown_duration"]
         
-        self.burst_max_requests = api_limiter_config["burst_max_requests"]
-        self.burst_cooldown_duration = api_limiter_config["burst_cooldown_duration"]
+        # Ограничение по количеству запросов
+        self.requests_per_period = api_limiter_config["requests_per_period"]
+        self.period_duration = api_limiter_config["period_duration"]
+        self.cooldown_after_period = api_limiter_config["cooldown_after_period"]
+        
+        # Ограничение по скорости
+        self.max_requests_per_second = api_limiter_config["max_requests_per_second"]
+        self.high_load_cooldown = api_limiter_config["high_load_cooldown"]
         
         self.monitored_groups = api_limiter_config["monitored_groups"]
         self.forbidden_methods = api_limiter_config["forbidden_methods"]
         
         # Устанавливаем защиту
         self._install_protection()
-        logger.info("API Limiter инициализирован с двумя типами ограничений")
+        logger.info("API Limiter инициализирован с новой логикой ограничений")
 
     def _should_monitor(self, request):
         """Определяем, нужно ли мониторить этот запрос"""
@@ -54,76 +57,80 @@ class APILimiter:
         request_name = type(request).__name__
         return request_name in self.forbidden_methods
 
-    async def _check_rate_limit(self, request_name):
-        """Проверяет ограничение скорости"""
-        async with self._rate_lock:
+    async def _check_period_limit(self, request_name):
+        """Проверяет ограничение по количеству запросов за период"""
+        async with self._period_lock:
             current_time = time.perf_counter()
             
             # Удаляем старые запросы
-            while self._rate_requests and current_time - self._rate_requests[0] > self.rate_time_sample:
-                self._rate_requests.popleft()
+            while self._period_requests and current_time - self._period_requests[0] > self.period_duration:
+                self._period_requests.popleft()
             
             # Добавляем текущий запрос
-            self._rate_requests.append(current_time)
+            self._period_requests.append(current_time)
             
             # Проверяем превышение лимита
-            if len(self._rate_requests) > self.rate_threshold:
-                if not self._rate_cooldown:
-                    self._rate_cooldown = asyncio.Event()
-                    error_msg = (f"RateLimitExceeded - wait {self.rate_cooldown_duration} seconds\n"
-                               f"Запросов: {len(self._rate_requests)}/{self.rate_threshold} "
-                               f"за {self.rate_time_sample} сек")
+            if len(self._period_requests) > self.requests_per_period:
+                if not self._period_cooldown:
+                    self._period_cooldown = asyncio.Event()
+                    error_msg = (f"PeriodLimitExceeded - wait {self.cooldown_after_period} seconds\n"
+                               f"Запросов: {len(self._period_requests)}/{self.requests_per_period} "
+                               f"за {self.period_duration} сек")
                     logger.warning(error_msg)
                     
                     # Запускаем сброс кулдауна
-                    asyncio.create_task(self._reset_rate_cooldown())
+                    asyncio.create_task(self._reset_period_cooldown())
                 
                 return False
             return True
 
-    async def _check_burst_limit(self, request_name):
-        """Проверяет общее ограничение (Burst)"""
-        async with self._burst_lock:
+    async def _check_speed_limit(self, request_name):
+        """Проверяет ограничение по скорости (запросов в секунду)"""
+        async with self._speed_lock:
             current_time = time.perf_counter()
             
+            # Удаляем запросы старше 1 секунды
+            while self._speed_requests and current_time - self._speed_requests[0] > 1:
+                self._speed_requests.popleft()
+            
             # Добавляем текущий запрос
-            self._burst_requests.append(current_time)
+            self._speed_requests.append(current_time)
             
             # Проверяем превышение лимита
-            if len(self._burst_requests) > self.burst_max_requests:
-                if not self._burst_cooldown:
-                    self._burst_cooldown = asyncio.Event()
-                    error_msg = (f"BurstLimitExceeded - wait {self.burst_cooldown_duration} seconds\n"
-                               f"Сделано {len(self._burst_requests)} запросов подряд, "
-                               f"максимум разрешено {self.burst_max_requests}")
+            if len(self._speed_requests) > self.max_requests_per_second:
+                if not self._speed_cooldown:
+                    self._speed_cooldown = asyncio.Event()
+                    error_msg = (f"SpeedLimitExceeded - wait {self.high_load_cooldown} seconds\n"
+                               f"Скорость: {len(self._speed_requests)} запросов/сек, "
+                               f"максимум разрешено {self.max_requests_per_second}")
                     logger.warning(error_msg)
                     
                     # Запускаем сброс кулдауна
-                    asyncio.create_task(self._reset_burst_cooldown())
+                    asyncio.create_task(self._reset_speed_cooldown())
                 
                 return False
             
             return True
 
-    async def _reset_rate_cooldown(self):
-        """Сбрасывает флаги кулдауна для ограничения скорости"""
-        await asyncio.sleep(self.rate_cooldown_duration)
-        async with self._rate_lock:
-            self._rate_requests.clear()
-            if self._rate_cooldown:
-                self._rate_cooldown.set()
-                self._rate_cooldown = None
-        logger.info("Rate limit cooldown finished")
+    async def _reset_period_cooldown(self):
+        """Сбрасывает флаги кулдауна для ограничения по количеству"""
+        await asyncio.sleep(self.cooldown_after_period)
+        async with self._period_lock:
+            self._period_requests.clear()
+            if self._period_cooldown:
+                self._period_cooldown.set()
+                self._period_cooldown = None
+        logger.info("Period limit cooldown finished")
 
-    async def _reset_burst_cooldown(self):
-        """Сбрасывает флаги кулдауна для общего ограничения"""
-        await asyncio.sleep(self.burst_cooldown_duration)
-        async with self._burst_lock:
-            self._burst_requests.clear()
-            if self._burst_cooldown:
-                self._burst_cooldown.set()
-                self._burst_cooldown = None
-        logger.info("Burst limit cooldown finished")
+    async def _reset_speed_cooldown(self):
+        """Сбрасывает флаги кулдауна для ограничения по скорости"""
+        await asyncio.sleep(self.high_load_cooldown)
+        async with self._speed_lock:
+            self._speed_requests.clear()
+            if self._speed_cooldown:
+                self._speed_cooldown.set()
+                self._speed_cooldown = None
+        logger.info("Speed limit cooldown finished")
 
     def _install_protection(self):
         """Установка перехватчика API вызовов"""
@@ -155,29 +162,29 @@ class APILimiter:
             # Получаем имя метода
             request_name = type(request).__name__
             
-            # Проверяем общее ограничение (Burst)
-            burst_allowed = await self._check_burst_limit(request_name)
-            if not burst_allowed and self._burst_cooldown:
-                await self._burst_cooldown.wait()
+            # Проверяем ограничение по скорости
+            speed_allowed = await self._check_speed_limit(request_name)
+            if not speed_allowed and self._speed_cooldown:
+                await self._speed_cooldown.wait()
                 # После ожидания снова проверяем
-                burst_allowed = await self._check_burst_limit(request_name)
-                if not burst_allowed:
+                speed_allowed = await self._check_speed_limit(request_name)
+                if not speed_allowed:
                     # Если все еще не разрешено, ждем окончания кулдауна
-                    await self._burst_cooldown.wait()
+                    await self._speed_cooldown.wait()
             
-            # Проверяем ограничение скорости (Rate)
-            rate_allowed = await self._check_rate_limit(request_name)
-            if not rate_allowed and self._rate_cooldown:
-                await self._rate_cooldown.wait()
+            # Проверяем ограничение по количеству
+            period_allowed = await self._check_period_limit(request_name)
+            if not period_allowed and self._period_cooldown:
+                await self._period_cooldown.wait()
                 # После ожидания снова проверяем
-                rate_allowed = await self._check_rate_limit(request_name)
-                if not rate_allowed:
+                period_allowed = await self._check_period_limit(request_name)
+                if not period_allowed:
                     # Если все еще не разрешено, ждем окончания кулдауна
-                    await self._rate_cooldown.wait()
+                    await self._period_cooldown.wait()
             
             return await old_call(sender, request, ordered, flood_sleep_threshold)
 
         # Сохраняем оригинальный метод и заменяем его
         self.bot.client._call = new_call
         self.bot.client._call._api_limiter_installed = True
-        logger.info("✅ API protection installed with dual limiting")
+        logger.info("✅ API protection installed with new limiting logic")

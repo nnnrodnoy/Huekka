@@ -67,86 +67,18 @@ install_python_dependencies() {
     fi
 }
 
-# Функция для настройки автозапуска через systemd (Ubuntu/Debian)
-setup_systemd_service() {
-    echo -e "${YELLOW}Setting up systemd service for Ubuntu/Debian...${NC}"
+# Функция для настройки окружения
+setup_environment() {
+    echo -e "${YELLOW}Setting up environment...${NC}"
     
-    SERVICE_FILE="/etc/systemd/system/huekka.service"
-    BOT_DIR=$(pwd)
+    # Создаем необходимые папки
+    mkdir -p cash
+    mkdir -p session
     
-    # Создаем сервисный файл
-    sudo tee $SERVICE_FILE > /dev/null <<EOF
-[Unit]
-Description=Huekka UserBot
-After=network.target
-
-[Service]
-Type=simple
-User=$USER
-WorkingDirectory=$BOT_DIR
-ExecStart=$BOT_DIR/start_bot.sh
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    # Включаем и запускаем сервис
-    sudo systemctl daemon-reload
-    sudo systemctl enable huekka
-    sudo systemctl start huekka
-    
-    echo -e "${GREEN}Systemd service created and started!${NC}"
-}
-
-# Функция для настройки автозапуска через crontab
-setup_crontab() {
-    echo -e "${YELLOW}Setting up crontab for autostart...${NC}"
-    
-    BOT_DIR=$(pwd)
-    CRON_JOB="@reboot sleep 30 && cd $BOT_DIR && ./start_bot.sh"
-    
-    # Добавляем задание в crontab
-    (crontab -l 2>/dev/null | grep -v "start_bot.sh"; echo "$CRON_JOB") | crontab -
-    
-    echo -e "${GREEN}Crontab configured!${NC}"
-}
-
-# Функция для настройки автозапуска через .bashrc (Termux)
-setup_bashrc() {
-    echo -e "${YELLOW}Setting up .bashrc for autostart...${NC}"
-    
-    # Включаем автозапуск через start_bot.sh
-    if ! grep -q "cd $(pwd) && ./start_bot.sh" ~/.bashrc; then
-        echo -e "\n# Автозапуск Huekka UserBot\ncd $(pwd) && ./start_bot.sh" >> ~/.bashrc
-    fi
-    
-    echo -e "${GREEN}.bashrc configured!${NC}"
-}
-
-# Функция для настройки автозапуска
-setup_autostart() {
-    echo -e "${YELLOW}Setting up autostart...${NC}"
-    
-    # Даем права на выполнение start_bot.sh
+    # Даем права на выполнение скриптов
     chmod +x start_bot.sh
     
-    # Определяем ОС и настраиваем автозапуск соответствующим образом
-    if [ -f /etc/os-release ]; then
-        # Это Linux система (скорее всего Ubuntu)
-        . /etc/os-release
-        if [ "$ID" = "ubuntu" ] || [ "$ID" = "debian" ]; then
-            # Для Ubuntu/Debian используем systemd сервис
-            setup_systemd_service
-        else
-            # Для других Linux систем используем crontab
-            setup_crontab
-        fi
-    else
-        # Для Termux используем .bashrc
-        setup_bashrc
-    fi
+    echo -e "${GREEN}Environment setup completed!${NC}"
 }
 
 # Основная логика скрипта
@@ -158,12 +90,12 @@ main() {
     
     # Устанавливаем зависимости
     if install_python_dependencies; then
-        # Настраиваем автозапуск
-        setup_autostart
+        # Настраиваем окружение
+        setup_environment
         
-        # Запускаем бота
-        echo -e "${GREEN}Starting bot...${NC}"
-        ./start_bot.sh
+        echo -e "${GREEN}Installation completed successfully!${NC}"
+        echo -e "${CYAN}To start the bot, run: ./start_bot.sh${NC}"
+        echo -e "${YELLOW}Note: On first run, you will need to enter your API credentials.${NC}"
     else
         show_error "Failed to install dependencies. Please check your internet connection and try again."
         exit 1

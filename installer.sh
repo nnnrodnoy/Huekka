@@ -1,3 +1,4 @@
+#!/bin/bash
 # ©️ nnnrodnoy, 2025
 # 💬 @nnnrodnoy
 # This file is part of Huekka
@@ -23,8 +24,7 @@ show_header() {
 # Функция для отображения ошибки
 show_error() {
     echo -e "${RED}Error: $1${NC}"
-    echo "Press any key to continue..."
-    read -n 1
+    exit 1
 }
 
 # Функция для установки Python зависимостей
@@ -67,60 +67,99 @@ install_python_dependencies() {
     fi
 }
 
-# Функция для установки настроек по умолчанию
-setup_default_config() {
-    echo -e "${YELLOW}Setting up default configuration...${NC}"
+# Функция для настройки автозапуска через systemd (Ubuntu/Debian)
+setup_systemd_service() {
+    echo -e "${YELLOW}Setting up systemd service for Ubuntu/Debian...${NC}"
     
-    # Создаем папку cash если её нет
-    mkdir -p cash
+    SERVICE_FILE="/etc/systemd/system/huekka.service"
+    BOT_DIR=$(pwd)
     
-    # Устанавливаем настройки по умолчанию через Python
-    python -c "
-import sqlite3
-conn = sqlite3.connect('cash/config.db')
-c = conn.cursor()
-c.execute('''CREATE TABLE IF NOT EXISTS global_config (
-             key TEXT PRIMARY KEY,
-             value TEXT)''')
-# Устанавливаем префикс по умолчанию
-c.execute(\"INSERT OR REPLACE INTO global_config (key, value) VALUES ('command_prefix', '.')\")
-# Включаем автоклинер
-c.execute(\"INSERT OR REPLACE INTO global_config (key, value) VALUES ('autoclean_enabled', 'True')\")
-# Устанавливаем время автоклинера
-c.execute(\"INSERT OR REPLACE INTO global_config (key, value) VALUES ('autoclean_delay', '1800')\")
-conn.commit()
-conn.close()
-"
+    # Создаем сервисный файл
+    sudo tee $SERVICE_FILE > /dev/null <<EOF
+[Unit]
+Description=Huekka UserBot
+After=network.target
+
+[Service]
+Type=simple
+User=$USER
+WorkingDirectory=$BOT_DIR
+ExecStart=$BOT_DIR/start_bot.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    # Включаем и запускаем сервис
+    sudo systemctl daemon-reload
+    sudo systemctl enable huekka
+    sudo systemctl start huekka
+    
+    echo -e "${GREEN}Systemd service created and started!${NC}"
+}
+
+# Функция для настройки автозапуска через crontab
+setup_crontab() {
+    echo -e "${YELLOW}Setting up crontab for autostart...${NC}"
+    
+    BOT_DIR=$(pwd)
+    CRON_JOB="@reboot sleep 30 && cd $BOT_DIR && ./start_bot.sh"
+    
+    # Добавляем задание в crontab
+    (crontab -l 2>/dev/null | grep -v "start_bot.sh"; echo "$CRON_JOB") | crontab -
+    
+    echo -e "${GREEN}Crontab configured!${NC}"
+}
+
+# Функция для настройки автозапуска через .bashrc (Termux)
+setup_bashrc() {
+    echo -e "${YELLOW}Setting up .bashrc for autostart...${NC}"
+    
+    # Включаем автозапуск через start_bot.sh
+    if ! grep -q "cd $(pwd) && ./start_bot.sh" ~/.bashrc; then
+        echo -e "\n# Автозапуск Huekka UserBot\ncd $(pwd) && ./start_bot.sh" >> ~/.bashrc
+    fi
+    
+    echo -e "${GREEN}.bashrc configured!${NC}"
+}
+
+# Функция для настройки автозапуска
+setup_autostart() {
+    echo -e "${YELLOW}Setting up autostart...${NC}"
     
     # Даем права на выполнение start_bot.sh
     chmod +x start_bot.sh
     
-    # Включаем автозапуск через start_bot.sh
-    if ! grep -q "cd $(pwd) && ./start_bot.sh" ~/.bashrc; then
-        echo "cd $(pwd) && ./start_bot.sh" >> ~/.bashrc
+    # Определяем ОС и настраиваем автозапуск соответствующим образом
+    if [ -f /etc/os-release ]; then
+        # Это Linux система (скорее всего Ubuntu)
+        . /etc/os-release
+        if [ "$ID" = "ubuntu" ] || [ "$ID" = "debian" ]; then
+            # Для Ubuntu/Debian используем systemd сервис
+            setup_systemd_service
+        else
+            # Для других Linux систем используем crontab
+            setup_crontab
+        fi
+    else
+        # Для Termux используем .bashrc
+        setup_bashrc
     fi
-    
-    echo -e "${GREEN}Default configuration applied successfully!${NC}"
 }
 
 # Основная логика скрипта
 main() {
     show_header
     
-    echo -e "${GREEN}Starting with default settings...${NC}"
-    echo -e "${CYAN}Settings:${NC}"
-    echo "- Prefix: '.'"
-    echo "- Autocleaner: Enabled (1800s)"
-    echo "- Autostart: Yes"
+    echo -e "${GREEN}Starting installation...${NC}"
     echo
     
     # Устанавливаем зависимости
     if install_python_dependencies; then
-        # Настраиваем параметры по умолчанию
-        setup_default_config
-        
-        # Даем права на выполнение start_bot.sh
-        chmod +x start_bot.sh
+        # Настраиваем автозапуск
+        setup_autostart
         
         # Запускаем бота
         echo -e "${GREEN}Starting bot...${NC}"

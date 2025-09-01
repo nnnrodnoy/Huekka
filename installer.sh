@@ -35,7 +35,7 @@ setup_virtual_environment() {
     # Создаем виртуальное окружение если его нет
     if [ ! -d "Huekka" ]; then
         echo -e "${YELLOW}Creating virtual environment...${NC}"
-        python3 -m venv Huekka
+        python -m venv Huekka
         if [ $? -ne 0 ]; then
             show_error "Failed to create virtual environment!"
             return 1
@@ -62,105 +62,15 @@ setup_virtual_environment() {
     fi
 }
 
-# Функция для настройки автозапуска
+# Функция для настройки автозапуска через .bashrc (Termux)
 setup_autostart() {
-    echo -e "${YELLOW}Setting up autostart...${NC}"
+    echo -e "${YELLOW}Setting up autostart for Termux...${NC}"
     
     # Даем права на выполнение start_bot.sh
     chmod +x start_bot.sh
     
-    # Определяем ОС и настраиваем автозапуск соответствующим образом
-    if [ -d "/data/data/com.termux/files/usr" ]; then
-        # Это Termux
-        setup_bashrc
-    elif [ -f /etc/os-release ]; then
-        # Это Linux система
-        . /etc/os-release
-        if [ "$ID" = "ubuntu" ] || [ "$ID" = "debian" ]; then
-            # Для Ubuntu/Debian используем systemd сервис
-            setup_systemd_service
-        else
-            # Для других Linux систем используем crontab
-            setup_crontab
-        fi
-    else
-        # Для других систем используем crontab
-        setup_crontab
-    fi
-}
-
-# Функция для настройки автозапуска через systemd (Ubuntu/Debian)
-setup_systemd_service() {
-    echo -e "${YELLOW}Setting up systemd service for Ubuntu/Debian...${NC}"
-    
-    # Проверяем, есть ли права sudo
-    if ! command -v sudo &> /dev/null; then
-        echo -e "${YELLOW}sudo not available, using crontab instead${NC}"
-        setup_crontab
-        return
-    fi
-    
-    SERVICE_FILE="/etc/systemd/system/huekka.service"
-    BOT_DIR=$(pwd)
-    USER_NAME=$(whoami)
-    
-    # Создаем сервисный файл
-    sudo tee $SERVICE_FILE > /dev/null <<EOF
-[Unit]
-Description=Huekka UserBot
-After=network.target
-
-[Service]
-Type=simple
-User=$USER_NAME
-WorkingDirectory=$BOT_DIR
-ExecStart=$BOT_DIR/start_bot.sh
-Restart=always
-RestartSec=5
-Environment=PYTHONUNBUFFERED=1
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    if [ $? -ne 0 ]; then
-        echo -e "${YELLOW}Failed to create systemd service, using crontab instead${NC}"
-        setup_crontab
-        return
-    fi
-
-    # Включаем и запускаем сервис
-    sudo systemctl daemon-reload
-    sudo systemctl enable huekka
-    sudo systemctl start huekka
-    
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}Systemd service created and started!${NC}"
-        echo -e "${YELLOW}To check status: sudo systemctl status huekka${NC}"
-        echo -e "${YELLOW}To view logs: sudo journalctl -u huekka -f${NC}"
-    else
-        echo -e "${YELLOW}Failed to start systemd service, using crontab instead${NC}"
-        setup_crontab
-    fi
-}
-
-# Функция для настройки автозапуска через crontab
-setup_crontab() {
-    echo -e "${YELLOW}Setting up crontab for autostart...${NC}"
-    
-    BOT_DIR=$(pwd)
-    START_SCRIPT="$BOT_DIR/start_bot.sh"
-    CRON_JOB="@reboot sleep 30 && bash '$START_SCRIPT' > '$BOT_DIR/bot.log' 2>&1"
-    
-    # Добавляем задание в crontab
-    (crontab -l 2>/dev/null | grep -v "start_bot.sh"; echo "$CRON_JOB") | crontab -
-    
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}Crontab configured!${NC}"
-        echo -e "${YELLOW}Bot logs will be saved to: $BOT_DIR/bot.log${NC}"
-    else
-        echo -e "${RED}Failed to configure crontab${NC}"
-    fi
+    # Настраиваем автозапуск через .bashrc
+    setup_bashrc
 }
 
 # Функция для настройки автозапуска через .bashrc (Termux)
@@ -193,15 +103,8 @@ setup_default_config() {
     # Активируем виртуальное окружение и устанавливаем настройки
     source Huekka/bin/activate
     
-    # Проверяем, доступна ли команда python
-    if command -v python > /dev/null 2>&1; then
-        PYTHON_CMD=python
-    else
-        PYTHON_CMD=python3
-    fi
-
     # Устанавливаем настройки по умолчанию через Python
-    $PYTHON_CMD -c "
+    python -c "
 import sqlite3
 import os
 

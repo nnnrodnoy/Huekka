@@ -12,12 +12,28 @@ cd "$SCRIPT_DIR"
 
 # Проверяем существование виртуального окружения
 if [ ! -d "Huekka" ]; then
-    echo "Виртуальное окружение не найдено. Запустите installer.sh сначала."
-    exit 1
+    echo "Виртуальное окружение не найдено. Создаем..."
+    python3 -m venv Huekka
+    if [ $? -ne 0 ]; then
+        echo "Ошибка при создании виртуального окружения!"
+        exit 1
+    fi
+    
+    # Активируем виртуальное окружение
+    source Huekka/bin/activate
+    
+    # Устанавливаем зависимости
+    echo "Устанавливаем зависимости..."
+    pip install --upgrade pip
+    pip install -r requirements.txt
+    if [ $? -ne 0 ]; then
+        echo "Ошибка при установке зависимостей!"
+        exit 1
+    fi
+else
+    # Активируем существующее виртуальное окружение
+    source Huekka/bin/activate
 fi
-
-# Активируем виртуальное окружение
-source Huekka/bin/activate
 
 # Запускаем бота
 python3 main.py

@@ -67,6 +67,9 @@ setup_virtual_environment() {
     echo -e "${YELLOW}Installing dependencies in virtual environment...${NC}"
     source Huekka/bin/activate
     
+    # Обновляем pip
+    pip install --upgrade pip
+    
     # Устанавливаем зависимости в виртуальном окружении
     pip install -r requirements.txt
     
@@ -89,8 +92,11 @@ setup_autostart() {
     chmod +x start_bot.sh
     
     # Определяем ОС и настраиваем автозапуск соответствующим образом
-    if [ -f /etc/os-release ]; then
-        # Это Linux система (скорее всего Ubuntu)
+    if [ -d "/data/data/com.termux/files/usr" ]; then
+        # Это Termux
+        setup_bashrc
+    elif [ -f /etc/os-release ]; then
+        # Это Linux система
         . /etc/os-release
         if [ "$ID" = "ubuntu" ] || [ "$ID" = "debian" ]; then
             # Для Ubuntu/Debian используем systemd сервис
@@ -100,8 +106,8 @@ setup_autostart() {
             setup_crontab
         fi
     else
-        # Для Termux используем .bashrc
-        setup_bashrc
+        # Для других систем используем crontab
+        setup_crontab
     fi
 }
 
@@ -109,8 +115,16 @@ setup_autostart() {
 setup_systemd_service() {
     echo -e "${YELLOW}Setting up systemd service for Ubuntu/Debian...${NC}"
     
+    # Проверяем, есть ли права sudo
+    if ! command -v sudo &> /dev/null; then
+        echo -e "${YELLOW}sudo not available, using crontab instead${NC}"
+        setup_crontab
+        return
+    fi
+    
     SERVICE_FILE="/etc/systemd/system/huekka.service"
     BOT_DIR=$(pwd)
+    USER_NAME=$(whoami)
     
     # Создаем сервисный файл
     sudo tee $SERVICE_FILE > /dev/null <<EOF
@@ -120,22 +134,36 @@ After=network.target
 
 [Service]
 Type=simple
-User=$USER
+User=$USER_NAME
 WorkingDirectory=$BOT_DIR
 ExecStart=$BOT_DIR/start_bot.sh
 Restart=always
 RestartSec=5
+Environment=PYTHONUNBUFFERED=1
 
 [Install]
 WantedBy=multi-user.target
 EOF
+
+    if [ $? -ne 0 ]; then
+        echo -e "${YELLOW}Failed to create systemd service, using crontab instead${NC}"
+        setup_crontab
+        return
+    fi
 
     # Включаем и запускаем сервис
     sudo systemctl daemon-reload
     sudo systemctl enable huekka
     sudo systemctl start huekka
     
-    echo -e "${GREEN}Systemd service created and started!${NC}"
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}Systemd service created and started!${NC}"
+        echo -e "${YELLOW}To check status: sudo systemctl status huekka${NC}"
+        echo -e "${YELLOW}To view logs: sudo journalctl -u huekka -f${NC}"
+    else
+        echo -e "${YELLOW}Failed to start systemd service, using crontab instead${NC}"
+        setup_crontab
+    fi
 }
 
 # Функция для настройки автозапуска через crontab
@@ -143,24 +171,32 @@ setup_crontab() {
     echo -e "${YELLOW}Setting up crontab for autostart...${NC}"
     
     BOT_DIR=$(pwd)
-    CRON_JOB="@reboot sleep 30 && cd $BOT_DIR && bash start_bot.sh"
+    START_SCRIPT="$BOT_DIR/start_bot.sh"
+    CRON_JOB="@reboot sleep 30 && bash '$START_SCRIPT' > '$BOT_DIR/bot.log' 2>&1"
     
     # Добавляем задание в crontab
     (crontab -l 2>/dev/null | grep -v "start_bot.sh"; echo "$CRON_JOB") | crontab -
     
-    echo -e "${GREEN}Crontab configured!${NC}"
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}Crontab configured!${NC}"
+        echo -e "${YELLOW}Bot logs will be saved to: $BOT_DIR/bot.log${NC}"
+    else
+        echo -e "${RED}Failed to configure crontab${NC}"
+    fi
 }
 
 # Функция для настройки автозапуска через .bashrc (Termux)
 setup_bashrc() {
     echo -e "${YELLOW}Setting up .bashrc for autostart...${NC}"
     
+    BOT_DIR=$(pwd)
     # Включаем автозапуск через start_bot.sh
-    if ! grep -q "cd $(pwd) && bsah start_bot.sh" ~/.bashrc; then
-        echo -e "\n# Автозапуск Huekka UserBot\ncd $(pwd) && bash start_bot.sh" >> ~/.bashrc
+    if ! grep -q "cd $BOT_DIR && bash start_bot.sh" ~/.bashrc; then
+        echo -e "\n# Автозапуск Huekka UserBot\ncd $BOT_DIR && bash start_bot.sh > bot.log 2>&1" >> ~/.bashrc
     fi
     
     echo -e "${GREEN}.bashrc configured!${NC}"
+    echo -e "${YELLOW}Bot logs will be saved to: $BOT_DIR/bot.log${NC}"
 }
 
 # Функция для установки настроек по умолчанию
@@ -171,9 +207,12 @@ setup_default_config() {
     mkdir -p cash
     
     # Устанавливаем настройки по умолчанию через Python
-    python -c "
+    python3 -c "
 import sqlite3
-conn = sqlite3.connect('cash/config.db')
+import os
+
+db_path = 'cash/config.db'
+conn = sqlite3.connect(db_path)
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS global_config (
              key TEXT PRIMARY KEY,
@@ -186,6 +225,7 @@ c.execute(\"INSERT OR REPLACE INTO global_config (key, value) VALUES ('autoclean
 c.execute(\"INSERT OR REPLACE INTO global_config (key, value) VALUES ('autoclean_delay', '1800')\")
 conn.commit()
 conn.close()
+print('Database configuration completed successfully')
 "
     
     echo -e "${GREEN}Default configuration applied successfully!${NC}"

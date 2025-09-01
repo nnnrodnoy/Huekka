@@ -96,22 +96,35 @@ class AutoCleaner:
                 
                 for msg_id, chat_id, message_id, attempts in pending_messages:
                     try:
-                        await self.bot.client.delete_messages(chat_id, message_id)
+                        # Пытаемся получить entity для чата
+                        try:
+                            entity = await self.bot.client.get_input_entity(chat_id)
+                        except Exception as e:
+                            logger.warning(f"Не удалось получить entity для чата {chat_id}: {str(e)}")
+                            self.bot.db.remove_from_autoclean(msg_id)
+                            continue
+                            
+                        await self.bot.client.delete_messages(entity, message_id)
                         logger.info(f"Сообщение {message_id} в чате {chat_id} удалено")
                         
                         self.bot.db.remove_from_autoclean(msg_id)
                         
                     except RPCError as e:
-                        logger.warning(f"Ошибка RPC при удалении сообщения {message_id}: {str(e)}")
-                        
-                        new_attempts = attempts + 1
-                        
-                        if new_attempts >= 5:
-                            logger.warning(f"Превышено максимальное количество попыток для сообщения {message_id}, удаляем из очереди")
+                        # Обработка ошибки "Could not find the input entity"
+                        if "Could not find the input entity" in str(e):
+                            logger.warning(f"Чат {chat_id} недоступен, удаляем запись из очереди")
                             self.bot.db.remove_from_autoclean(msg_id)
                         else:
-                            new_delete_at = time.time() + 60
-                            self.bot.db.update_autoclean_attempt(msg_id, new_attempts, new_delete_at)
+                            logger.warning(f"Ошибка RPC при удалении сообщения {message_id}: {str(e)}")
+                            
+                            new_attempts = attempts + 1
+                            
+                            if new_attempts >= 5:
+                                logger.warning(f"Превышено максимальное количество попыток для сообщения {message_id}, удаляем из очереди")
+                                self.bot.db.remove_from_autoclean(msg_id)
+                            else:
+                                new_delete_at = time.time() + 60
+                                self.bot.db.update_autoclean_attempt(msg_id, new_attempts, new_delete_at)
                             
                     except Exception as e:
                         logger.error(f"Неизвестная ошибка при удалении сообщения {message_id}: {str(e)}")

@@ -13,7 +13,7 @@ cd "$SCRIPT_DIR"
 # Проверяем существование виртуального окружения
 if [ ! -d "Huekka" ]; then
     echo "Виртуальное окружение не найдено. Создаем..."
-    python3 -m venv Huekka
+    python -m venv Huekka
     if [ $? -ne 0 ]; then
         echo "Ошибка при создании виртуального окружения!"
         exit 1
@@ -36,4 +36,4 @@ else
 fi
 
 # Запускаем бота
-python3 main.py
+python main.py

@@ -28,28 +28,6 @@ show_error() {
     read -n 1
 }
 
-# Функция для установки Python зависимостей
-install_python_dependencies() {
-    echo -e "${YELLOW}Installing Python dependencies...${NC}"
-    
-    # Проверяем наличие файла requirements.txt
-    if [ ! -f "requirements.txt" ]; then
-        show_error "requirements.txt not found!"
-        return 1
-    fi
-    
-    # Устанавливаем зависимости
-    pip install -r requirements.txt
-    
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}All dependencies installed successfully!${NC}"
-        return 0
-    else
-        show_error "Failed to install some dependencies"
-        return 1
-    fi
-}
-
 # Функция для создания виртуального окружения
 setup_virtual_environment() {
     echo -e "${YELLOW}Setting up virtual environment...${NC}"
@@ -206,8 +184,24 @@ setup_default_config() {
     # Создаем папку cash если её нет
     mkdir -p cash
     
+    # Проверяем существование виртуального окружения
+    if [ ! -d "Huekka" ]; then
+        show_error "Виртуальное окружение не найдено. Сначала запустите установку зависимостей."
+        return 1
+    fi
+    
+    # Активируем виртуальное окружение и устанавливаем настройки
+    source Huekka/bin/activate
+    
+    # Проверяем, доступна ли команда python
+    if command -v python > /dev/null 2>&1; then
+        PYTHON_CMD=python
+    else
+        PYTHON_CMD=python3
+    fi
+
     # Устанавливаем настройки по умолчанию через Python
-    python3 -c "
+    $PYTHON_CMD -c "
 import sqlite3
 import os
 
@@ -228,7 +222,10 @@ conn.close()
 print('Database configuration completed successfully')
 "
     
+    deactivate
+    
     echo -e "${GREEN}Default configuration applied successfully!${NC}"
+    return 0
 }
 
 # Основная логика скрипта
@@ -245,14 +242,17 @@ main() {
     # Создаем виртуальное окружение и устанавливаем зависимости
     if setup_virtual_environment; then
         # Настраиваем параметры по умолчанию
-        setup_default_config
-        
-        # Настраиваем автозапуск
-        setup_autostart
-        
-        # Запускаем бота
-        echo -e "${GREEN}Starting bot...${NC}"
-        bash start_bot.sh
+        if setup_default_config; then
+            # Настраиваем автозапуск
+            setup_autostart
+            
+            # Запускаем бота
+            echo -e "${GREEN}Starting bot...${NC}"
+            bash start_bot.sh
+        else
+            show_error "Failed to setup default config"
+            exit 1
+        fi
     else
         show_error "Failed to install dependencies. Please check your internet connection and try again."
         exit 1

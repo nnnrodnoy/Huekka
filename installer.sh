@@ -143,7 +143,7 @@ setup_crontab() {
     echo -e "${YELLOW}Setting up crontab for autostart...${NC}"
     
     BOT_DIR=$(pwd)
-    CRON_JOB="@reboot sleep 30 && cd $BOT_DIR && ./start_bot.sh"
+    CRON_JOB="@reboot sleep 30 && cd $BOT_DIR && bash start_bot.sh"
     
     # Добавляем задание в crontab
     (crontab -l 2>/dev/null | grep -v "start_bot.sh"; echo "$CRON_JOB") | crontab -
@@ -156,8 +156,8 @@ setup_bashrc() {
     echo -e "${YELLOW}Setting up .bashrc for autostart...${NC}"
     
     # Включаем автозапуск через start_bot.sh
-    if ! grep -q "cd $(pwd) && ./start_bot.sh" ~/.bashrc; then
-        echo -e "\n# Автозапуск Huekka UserBot\ncd $(pwd) && ./start_bot.sh" >> ~/.bashrc
+    if ! grep -q "cd $(pwd) && bsah start_bot.sh" ~/.bashrc; then
+        echo -e "\n# Автозапуск Huekka UserBot\ncd $(pwd) && bash start_bot.sh" >> ~/.bashrc
     fi
     
     echo -e "${GREEN}.bashrc configured!${NC}"
@@ -212,7 +212,7 @@ main() {
         
         # Запускаем бота
         echo -e "${GREEN}Starting bot...${NC}"
-        ./start_bot.sh
+        bash start_bot.sh
     else
         show_error "Failed to install dependencies. Please check your internet connection and try again."
         exit 1

@@ -5,44 +5,56 @@
 # 🌐 https://github.com/stepka5/Huekka
 # You can redistribute it and/or modify it under the terms of the MIT License
 # 🔑 https://opensource.org/licenses/MIT
+
 PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
 NC='\033[0m' # No Color
 
 # Функция для отображения заголовка
 show_header() {
+    clear
     echo -e "${PURPLE}"
-    echo "╔══════════════════════════════════════════════════════╗"
-    echo "║                 HUEKKA USERBOT INSTALLER            ║"
-    echo "╚══════════════════════════════════════════════════════╝"
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║                                                              ║"
+    echo "║                  ${CYAN}HUEKKA USERBOT INSTALLER${PURPLE}                  ║"
+    echo "║                                                              ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
+    echo -e "${BLUE}           Telegram: @BotHuekka | GitHub: nnnrodnoy${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+    echo
 }
 
 # Функция для отображения ошибки
 show_error() {
-    echo -e "${RED}Error: $1${NC}"
+    echo -e "${RED}✗ Error: $1${NC}"
     echo "Press any key to continue..."
     read -n 1
 }
 
 # Функция для создания виртуального окружения
 setup_virtual_environment() {
-    echo -e "${YELLOW}Setting up virtual environment...${NC}"
+    echo -e "${YELLOW}Creating Python virtual environment...${NC}"
     
     # Создаем виртуальное окружение если его нет
     if [ ! -d "Huekka" ]; then
-        echo -e "${YELLOW}Creating virtual environment...${NC}"
+        echo -e "${YELLOW}Setting up virtual environment...${NC}"
         python -m venv Huekka
         if [ $? -ne 0 ]; then
             show_error "Failed to create virtual environment!"
             return 1
         fi
+        echo -e "${GREEN}✓ Virtual environment created successfully${NC}"
+    else
+        echo -e "${GREEN}✓ Virtual environment already exists${NC}"
     fi
     
-    echo -e "${YELLOW}Installing dependencies in virtual environment...${NC}"
+    echo -e "${YELLOW}Installing dependencies...${NC}"
     source Huekka/bin/activate
     
     # Обновляем pip
@@ -52,11 +64,11 @@ setup_virtual_environment() {
     pip install -r requirements.txt
     
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}All dependencies installed successfully in virtual environment!${NC}"
+        echo -e "${GREEN}✓ All dependencies installed successfully${NC}"
         deactivate
         return 0
     else
-        show_error "Failed to install some dependencies in virtual environment"
+        show_error "Failed to install dependencies"
         deactivate
         return 1
     fi
@@ -64,7 +76,7 @@ setup_virtual_environment() {
 
 # Функция для настройки автозапуска через .bashrc (Termux)
 setup_autostart() {
-    echo -e "${YELLOW}Setting up autostart for Termux...${NC}"
+    echo -e "${YELLOW}Configuring autostart for Termux...${NC}"
     
     # Даем права на выполнение start_bot.sh
     chmod +x start_bot.sh
@@ -80,23 +92,25 @@ setup_bashrc() {
     BOT_DIR=$(pwd)
     # Включаем автозапуск через start_bot.sh
     if ! grep -q "cd $BOT_DIR && bash start_bot.sh" ~/.bashrc; then
-        echo -e "\n# Автозапуск Huekka UserBot\ncd $BOT_DIR && bash start_bot.sh > bot.log 2>&1" >> ~/.bashrc
+        echo -e "\n# Huekka UserBot Autostart\ncd $BOT_DIR && bash start_bot.sh > bot.log 2>&1" >> ~/.bashrc
+        echo -e "${GREEN}✓ Autostart configured in .bashrc${NC}"
+    else
+        echo -e "${GREEN}✓ Autostart already configured${NC}"
     fi
     
-    echo -e "${GREEN}.bashrc configured!${NC}"
     echo -e "${YELLOW}Bot logs will be saved to: $BOT_DIR/bot.log${NC}"
 }
 
 # Функция для установки настроек по умолчанию
 setup_default_config() {
-    echo -e "${YELLOW}Setting up default configuration...${NC}"
+    echo -e "${YELLOW}Applying default configuration...${NC}"
     
     # Создаем папку cash если её нет
     mkdir -p cash
     
     # Проверяем существование виртуального окружения
     if [ ! -d "Huekka" ]; then
-        show_error "Виртуальное окружение не найдено. Сначала запустите установку зависимостей."
+        show_error "Virtual environment not found. Please run dependency installation first."
         return 1
     fi
     
@@ -127,19 +141,29 @@ print('Database configuration completed successfully')
     
     deactivate
     
-    echo -e "${GREEN}Default configuration applied successfully!${NC}"
+    echo -e "${GREEN}✓ Default configuration applied successfully${NC}"
     return 0
+}
+
+# Функция для отображения текущих настроек
+show_current_settings() {
+    echo -e "${MAGENTA}════════════════════ CURRENT SETTINGS ════════════════════${NC}"
+    echo -e "${CYAN}Command Prefix:${NC} ."
+    echo -e "${CYAN}Autocleaner:${NC} Enabled (1800s)"
+    echo -e "${CYAN}Autostart:${NC} Enabled"
+    echo -e "${CYAN}Virtual Environment:${NC} Huekka/"
+    echo -e "${CYAN}Log File:${NC} bot.log"
+    echo -e "${MAGENTA}══════════════════════════════════════════════════════════${NC}"
+    echo
+    echo -e "${YELLOW}Please review these settings. Press ENTER to continue...${NC}"
+    read -n 1
 }
 
 # Основная логика скрипта
 main() {
     show_header
     
-    echo -e "${GREEN}Starting installation...${NC}"
-    echo -e "${CYAN}Settings:${NC}"
-    echo "- Prefix: '.'"
-    echo "- Autocleaner: Enabled (1800s)"
-    echo "- Autostart: Enabled"
+    echo -e "${GREEN}Starting installation process...${NC}"
     echo
     
     # Создаем виртуальное окружение и устанавливаем зависимости
@@ -149,8 +173,12 @@ main() {
             # Настраиваем автозапуск
             setup_autostart
             
+            # Показываем текущие настройки
+            show_current_settings
+            
             # Запускаем бота
-            echo -e "${GREEN}Starting bot...${NC}"
+            echo -e "${GREEN}Starting Huekka UserBot...${NC}"
+            echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
             bash start_bot.sh
         else
             show_error "Failed to setup default config"
@@ -163,6 +191,4 @@ main() {
 }
 
 # Начало выполнения скрипта
-clear
-show_header
 main

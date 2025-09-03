@@ -28,19 +28,9 @@ print_error() {
     echo -e "${RED}[Error]${NC} $1"
 }
 
-# Проверяем существование виртуального окружения
-if [ ! -d "Huekka" ]; then
-    print_error "Virtual environment not found!"
-    echo -e "${YELLOW}Please run installer.sh first to setup the environment${NC}"
-    exit 1
-fi
-
-# Активируем виртуальное окружение
-print_status "Activating virtual environment..."
-source Huekka/bin/activate
-
+print_status "Checking dependencies..."
 # Проверяем установлены ли зависимости
-if ! pip show telethon > /dev/null 2>&1; then
+if ! python -c "import telethon" 2>/dev/null; then
     print_status "Installing dependencies..."
     pip install -r requirements.txt
     if [ $? -ne 0 ]; then
@@ -49,6 +39,5 @@ if ! pip show telethon > /dev/null 2>&1; then
     fi
 fi
 
-# Запускаем бота
 print_status "Starting Huekka UserBot..."
 python main.py

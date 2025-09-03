@@ -45,9 +45,7 @@ setup_virtual_environment() {
     # Устанавливаем зависимости глобально
     echo -e "${YELLOW}Installing dependencies...${NC}"
     
-    # Обновляем pip
-    pip install --upgrade pip
-    
+    # В Termux не обновляем pip, так как это запрещено
     # Устанавливаем зависимости
     pip install -r requirements.txt
     
@@ -76,6 +74,13 @@ setup_bashrc() {
     echo -e "${YELLOW}Setting up .bashrc for autostart...${NC}"
     
     BOT_DIR=$(pwd)
+    
+    # Создаем .bashrc, если его нет
+    if [ ! -f ~/.bashrc ]; then
+        touch ~/.bashrc
+        echo -e "${GREEN}✓ Created .bashrc file${NC}"
+    fi
+    
     # Включаем автозапуск через start_bot.sh
     if ! grep -q "cd $BOT_DIR && bash start_bot.sh" ~/.bashrc; then
         echo -e "\n# Huekka UserBot Autostart\ncd $BOT_DIR && bash start_bot.sh > bot.log 2>&1" >> ~/.bashrc
@@ -134,12 +139,34 @@ show_current_settings() {
     read -n 1
 }
 
+# Проверяем зависимости
+check_dependencies() {
+    echo -e "${YELLOW}Checking dependencies...${NC}"
+    
+    # Проверяем наличие Python
+    if ! command -v python &> /dev/null; then
+        echo -e "${RED}Python is not installed. Please install Python in Termux.${NC}"
+        exit 1
+    fi
+    
+    # Проверяем наличие pip
+    if ! command -v pip &> /dev/null; then
+        echo -e "${RED}pip is not installed. Please install pip in Termux.${NC}"
+        exit 1
+    fi
+    
+    echo -e "${GREEN}✓ All required dependencies are available${NC}"
+}
+
 # Основная логика скрипта
 main() {
     show_header
     
     echo -e "${GREEN}Starting installation process...${NC}"
     echo
+    
+    # Проверяем зависимости
+    check_dependencies
     
     # Устанавливаем зависимости
     if setup_virtual_environment; then

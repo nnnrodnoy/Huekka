@@ -37,39 +37,25 @@ show_error() {
     read -n 1
 }
 
-# Функция для создания виртуального окружения
+# Функция для создания виртуального окружения в Termux
 setup_virtual_environment() {
-    echo -e "${YELLOW}Creating Python virtual environment...${NC}"
+    echo -e "${YELLOW}Setting up Python environment for Termux...${NC}"
     
-    # Создаем виртуальное окружение если его нет
-    if [ ! -d "Huekka" ]; then
-        echo -e "${YELLOW}Setting up virtual environment...${NC}"
-        python -m venv Huekka
-        if [ $? -ne 0 ]; then
-            show_error "Failed to create virtual environment!"
-            return 1
-        fi
-        echo -e "${GREEN}✓ Virtual environment created successfully${NC}"
-    else
-        echo -e "${GREEN}✓ Virtual environment already exists${NC}"
-    fi
-    
+    # В Termux используем pip без виртуального окружения
+    # Устанавливаем зависимости глобально
     echo -e "${YELLOW}Installing dependencies...${NC}"
-    source Huekka/bin/activate
     
     # Обновляем pip
     pip install --upgrade pip
     
-    # Устанавливаем зависимости в виртуальном окружении
+    # Устанавливаем зависимости
     pip install -r requirements.txt
     
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓ All dependencies installed successfully${NC}"
-        deactivate
         return 0
     else
         show_error "Failed to install dependencies"
-        deactivate
         return 1
     fi
 }
@@ -108,15 +94,6 @@ setup_default_config() {
     # Создаем папку cash если её нет
     mkdir -p cash
     
-    # Проверяем существование виртуального окружения
-    if [ ! -d "Huekka" ]; then
-        show_error "Virtual environment not found. Please run dependency installation first."
-        return 1
-    fi
-    
-    # Активируем виртуальное окружение и устанавливаем настройки
-    source Huekka/bin/activate
-    
     # Устанавливаем настройки по умолчанию через Python
     python -c "
 import sqlite3
@@ -139,8 +116,6 @@ conn.close()
 print('Database configuration completed successfully')
 "
     
-    deactivate
-    
     echo -e "${GREEN}✓ Default configuration applied successfully${NC}"
     return 0
 }
@@ -151,7 +126,7 @@ show_current_settings() {
     echo -e "${CYAN}Command Prefix:${NC} ."
     echo -e "${CYAN}Autocleaner:${NC} Enabled (1800s)"
     echo -e "${CYAN}Autostart:${NC} Enabled"
-    echo -e "${CYAN}Virtual Environment:${NC} Huekka/"
+    echo -e "${CYAN}Environment:${NC} Termux (global packages)"
     echo -e "${CYAN}Log File:${NC} bot.log"
     echo -e "${MAGENTA}══════════════════════════════════════════════════════════${NC}"
     echo
@@ -166,7 +141,7 @@ main() {
     echo -e "${GREEN}Starting installation process...${NC}"
     echo
     
-    # Создаем виртуальное окружение и устанавливаем зависимости
+    # Устанавливаем зависимости
     if setup_virtual_environment; then
         # Настраиваем параметры по умолчанию
         if setup_default_config; then

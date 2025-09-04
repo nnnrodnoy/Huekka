@@ -46,13 +46,6 @@ class LoaderModule:
             module_name="Loader"
         )
         
-        bot.register_command(
-            cmd="ulm",
-            handler=self.unload_module,
-            description="Выгрузить модуль",
-            module_name="Loader"
-        )
-        
         bot.set_module_description("Loader", "Динамическая загрузка модулей")
 
     def get_random_smile(self):
@@ -363,119 +356,6 @@ class LoaderModule:
                     os.remove(temp_file)
             except:
                 pass
-
-    async def unload_module(self, event):
-        prefix = self.bot.command_prefix
-        
-        args = event.text.split()
-        if len(args) < 2:
-            await event.edit(f"ℹ️ **Укажите название модуля:** `{prefix}ulm ModuleName`")
-            return
-
-        module_query = " ".join(args[1:]).strip()
-        
-        # Сначала ищем среди загруженных модулей
-        found_name, module_info = await self.find_module_info(module_query)
-        
-        if not found_name:
-            error_msg = msg.error(f"Модуль `{module_query}` не найден")
-            await event.edit(error_msg)
-            return
-
-        # Проверяем, является ли модуль core-модулем
-        if found_name in self.bot.core_modules:
-            error_msg = msg.error(f"Модуль `{found_name}` является системным и не может быть выгружен")
-            await event.edit(error_msg)
-            return
-
-        # Получаем путь к файлу модуля
-        module_path = None
-        if found_name in self.bot.module_files:
-            module_path = Path(self.bot.module_files[found_name])
-            if not module_path.exists():
-                # Если файл не существует, удаляем запись и ищем по-другому
-                del self.bot.module_files[found_name]
-                module_path = None
-        
-        # Если не нашли путь в module_files, ищем файл по имени модуля
-        if not module_path:
-            possible_filenames = self._module_name_to_filename(found_name)
-            modules_dir = Path("modules").resolve()
-            
-            for filename in possible_filenames:
-                possible_path = modules_dir / filename
-                if possible_path.exists():
-                    module_path = possible_path
-                    break
-            else:
-                # Если файл не найден, попробуем найти по частичному совпадению
-                module_path = self.find_module_file(found_name)
-
-        # Проверяем существование файла
-        if not module_path or not module_path.exists():
-            error_msg = msg.error(f"Файл модуля `{found_name}` не найден")
-            await event.edit(error_msg)
-            return
-
-        user_info = await self.get_user_info(event)
-        is_premium = user_info["premium"]
-
-        # Используем анимацию для выгрузки модуля
-        async def unload_module_task():
-            start_time = time.time()
-            
-            # Удаляем команды модуля
-            commands_to_remove = [
-                cmd for cmd, data in self.bot.commands.items() 
-                if data.get("module") and data.get("module").lower() == found_name.lower()
-            ]
-            
-            for cmd in commands_to_remove:
-                del self.bot.commands[cmd]
-            
-            # Удаляем из sys.modules если есть
-            if found_name in sys.modules:
-                del sys.modules[found_name]
-            
-            # Удаляем файл
-            os.remove(module_path)
-            
-            # Удаляем из bot.modules если есть
-            if found_name in self.bot.modules:
-                del self.bot.modules[found_name]
-            
-            # Удаляем описание модуля если есть
-            if found_name in self.bot.module_descriptions:
-                del self.bot.module_descriptions[found_name]
-            
-            # Удаляем из module_files если есть
-            if found_name in self.bot.module_files:
-                del self.bot.module_files[found_name]
-            
-            elapsed = time.time() - start_time
-            if elapsed < self.min_animation_time:
-                await asyncio.sleep(self.min_animation_time - elapsed)
-            
-            return loader_format.format_unloaded_message(
-                found_name, is_premium, self.info_emoji_id, self.bot.command_prefix
-            )
-
-        try:
-            # Запускаем выгрузку модуля с анимацией
-            unloaded_message = await self.animate_loading_until_done(
-                event, f"Удаляю модуль `{found_name}`", is_premium, unload_module_task()
-            )
-            
-            message = await event.edit(unloaded_message)
-            
-            await asyncio.sleep(self.delete_delay)
-            await message.delete()
-            
-        except Exception as e:
-            error_trace = traceback.format_exc()
-            logger.error(f"Ошибка выгрузки модуля: {str(e)}\n{error_trace}")
-            error_msg = msg.error("Ошибка выгрузки модуля", str(e))
-            await event.edit(error_msg)
 
 def setup(bot):
     LoaderModule(bot)

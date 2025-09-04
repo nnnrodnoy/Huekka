@@ -35,6 +35,10 @@ class LoaderModule:
         self.min_animation_time = BotConfig.LOADER["min_animation_time"]
         self.delete_delay = BotConfig.LOADER["delete_delay"]
         
+        # Словарь для хранения соответствия имен модулей и файлов
+        if not hasattr(bot, 'module_files'):
+            bot.module_files = {}
+        
         bot.register_command(
             cmd="lm",
             handler=self.load_module,
@@ -290,6 +294,9 @@ class LoaderModule:
                 spec.loader.exec_module(module)
                 
                 module.setup(self.bot)
+                
+                # Сохраняем информацию о файле модуля
+                self.bot.module_files[module_name] = module_file_path
                     
                 after_commands = set(self.bot.commands.keys())
                 new_commands = after_commands - before_commands
@@ -370,29 +377,28 @@ class LoaderModule:
         # Сначала ищем среди загруженных модулей
         found_name, module_info = await self.find_module_info(module_query)
         
-        module_path = None
-        # Если не нашли, ищем файл модуля
-        if not found_name:
-            found_file = self.find_module_file(module_query)
-            if found_file:
-                # Проверяем, может быть модуль загружен под другим регистром?
-                for loaded_name in self.bot.modules.keys():
-                    if loaded_name.lower() == found_file.stem.lower():
-                        found_name = loaded_name
-                        module_info = await self.get_module_info(found_name)
-                        break
-                else:
-                    found_name = found_file.stem
-
-                module_path = found_file
-
         if not found_name:
             error_msg = msg.error(f"Модуль `{module_query}` не найден")
             await event.edit(error_msg)
             return
 
+        # Проверяем, является ли модуль core-модулем
+        if found_name in self.bot.core_modules:
+            error_msg = msg.error(f"Модуль `{found_name}` является системным и не может быть выгружен")
+            await event.edit(error_msg)
+            return
+
+        # Получаем путь к файлу модуля
+        module_path = None
+        if found_name in self.bot.module_files:
+            module_path = Path(self.bot.module_files[found_name])
+            if not module_path.exists():
+                # Если файл не существует, удаляем запись и ищем по-другому
+                del self.bot.module_files[found_name]
+                module_path = None
+        
+        # Если не нашли путь в module_files, ищем файл по имени модуля
         if not module_path:
-            # Пробуем разные варианты имен файлов
             possible_filenames = self._module_name_to_filename(found_name)
             modules_dir = Path("modules").resolve()
             
@@ -411,12 +417,6 @@ class LoaderModule:
             await event.edit(error_msg)
             return
 
-        # Проверяем, является ли модуль core-модулем
-        if found_name in self.bot.core_modules:
-            error_msg = msg.error(f"Модуль `{found_name}` является системным и не может быть выгружен")
-            await event.edit(error_msg)
-            return
-
         user_info = await self.get_user_info(event)
         is_premium = user_info["premium"]
 
@@ -424,15 +424,14 @@ class LoaderModule:
         async def unload_module_task():
             start_time = time.time()
             
-            # Удаляем команды только если модуль загружен
-            if found_name in self.bot.modules:
-                commands_to_remove = [
-                    cmd for cmd, data in self.bot.commands.items() 
-                    if data.get("module") and data.get("module").lower() == found_name.lower()
-                ]
-                
-                for cmd in commands_to_remove:
-                    del self.bot.commands[cmd]
+            # Удаляем команды модуля
+            commands_to_remove = [
+                cmd for cmd, data in self.bot.commands.items() 
+                if data.get("module") and data.get("module").lower() == found_name.lower()
+            ]
+            
+            for cmd in commands_to_remove:
+                del self.bot.commands[cmd]
             
             # Удаляем из sys.modules если есть
             if found_name in sys.modules:
@@ -448,6 +447,10 @@ class LoaderModule:
             # Удаляем описание модуля если есть
             if found_name in self.bot.module_descriptions:
                 del self.bot.module_descriptions[found_name]
+            
+            # Удаляем из module_files если есть
+            if found_name in self.bot.module_files:
+                del self.bot.module_files[found_name]
             
             elapsed = time.time() - start_time
             if elapsed < self.min_animation_time:

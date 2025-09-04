@@ -16,6 +16,7 @@ import secrets
 import shutil
 import tempfile
 import subprocess
+import logging
 from pathlib import Path
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
@@ -33,6 +34,16 @@ from telethon.errors import (
 # Импортируем функции для работы с артами
 from arter import print_random_art, print_specific_art
 
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger("Huekka.Main")
+
 class Colors:
     DARK_VIOLET = '\033[38;5;54m'
     LIGHT_BLUE = '\033[38;5;117m'
@@ -44,136 +55,140 @@ class Colors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
 
-class Updater:
+class GitHubUpdater:
     def __init__(self):
         self.repo_url = "https://github.com/nnnrodnoy/Huekka"
         self.update_files = ['main.py', 'userbot.py', 'installer.sh', 'start_bot.sh', 'requirements.txt', 'config.py', 'arter.py']
         self.update_dirs = ['core', 'asset', 'arts']
+        self.last_update_file = Path("data") / "last_update.txt"
+        self.last_update_file.parent.mkdir(exist_ok=True)
     
-    def run_command(self, cmd, cwd=None):
-        """Выполняет команду и возвращает результат"""
+    async def get_latest_commit_date(self):
+        """Получает дату последнего коммита из репозитория"""
         try:
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=cwd)
-            return result.returncode == 0, result.stdout, result.stderr
+            # Используем GitHub API для получения информации о репозитории
+            result = subprocess.run([
+                'curl', '-s', 
+                f'https://api.github.com/repos/nnnrodnoy/Huekka/commits?per_page=1'
+            ], capture_output=True, text=True, timeout=30)
+            
+            if result.returncode == 0:
+                commits = json.loads(result.stdout)
+                if commits and len(commits) > 0:
+                    return commits[0]['commit']['committer']['date']
         except Exception as e:
-            return False, "", str(e)
-
-    def check_update(self):
-        """Проверяет наличие обновлений только для нужных файлов и папок"""
-        # Создаем временную директорию
-        temp_dir = tempfile.mkdtemp(prefix="huekka_update_")
+            logger.error(f"Ошибка получения даты коммита: {str(e)}")
         
+        return None
+    
+    async def get_local_last_update(self):
+        """Получает дату последнего обновления из файла"""
+        if self.last_update_file.exists():
+            try:
+                with open(self.last_update_file, 'r') as f:
+                    return float(f.read().strip())
+            except:
+                pass
+        return 0
+    
+    async def set_local_last_update(self):
+        """Устанавливает текущее время как дату последнего обновления"""
         try:
-            # Клонируем репозиторий
-            success, stdout, stderr = self.run_command(f"git clone {self.repo_url} {temp_dir} --depth=1")
-            if not success:
-                shutil.rmtree(temp_dir, ignore_errors=True)
-                return False
-            
-            # Проверяем изменения только в нужных файлах и папках
-            has_changes = False
-            
-            # Проверяем файлы
-            for file in self.update_files:
-                repo_file = os.path.join(temp_dir, file)
-                local_file = file
-                
-                if os.path.exists(repo_file):
-                    if not os.path.exists(local_file):
-                        has_changes = True
-                        break
-                    
-                    # Сравниваем содержимое файлов
-                    with open(repo_file, 'rb') as f1, open(local_file, 'rb') as f2:
-                        if f1.read() != f2.read():
-                            has_changes = True
-                            break
-            
-            # Проверяем папки
-            if not has_changes:
-                for dir_name in self.update_dirs:
-                    repo_dir = os.path.join(temp_dir, dir_name)
-                    local_dir = dir_name
-                    
-                    if os.path.exists(repo_dir):
-                        if not os.path.exists(local_dir):
-                            has_changes = True
-                            break
-                        
-                        # Рекурсивно проверяем файлы в папке
-                        for root, dirs, files in os.walk(repo_dir):
-                            for file in files:
-                                rel_path = os.path.relpath(os.path.join(root, file), repo_dir)
-                                repo_file_path = os.path.join(root, file)
-                                local_file_path = os.path.join(local_dir, rel_path)
-                                
-                                if not os.path.exists(local_file_path):
-                                    has_changes = True
-                                    break
-                                
-                                with open(repo_file_path, 'rb') as f1, open(local_file_path, 'rb') as f2:
-                                    if f1.read() != f2.read():
-                                        has_changes = True
-                                        break
-                            
-                            if has_changes:
-                                break
-                    
-                    if has_changes:
-                        break
-            
-            shutil.rmtree(temp_dir, ignore_errors=True)
-            return has_changes
-            
+            with open(self.last_update_file, 'w') as f:
+                f.write(str(time.time()))
+            return True
         except Exception as e:
-            shutil.rmtree(temp_dir, ignore_errors=True)
+            logger.error(f"Ошибка записи даты обновления: {str(e)}")
             return False
-
-    def perform_update(self):
-        """Выполняет обновление только нужных файлов и папки"""
-        # Создаем временную директорию
+    
+    async def check_for_updates(self):
+        """Проверяет наличие обновлений"""
+        try:
+            # Получаем дату последнего коммита
+            commit_date_str = await self.get_latest_commit_date()
+            if not commit_date_str:
+                return False
+            
+            # Конвертируем в timestamp
+            from datetime import datetime
+            commit_date = datetime.strptime(commit_date_str, '%Y-%m-%dT%H:%M:%SZ')
+            commit_timestamp = commit_date.timestamp()
+            
+            # Получаем дату последнего локального обновления
+            local_timestamp = await self.get_local_last_update()
+            
+            # Если коммит новее нашего последнего обновления
+            return commit_timestamp > local_timestamp
+            
+        except Exception as e:
+            logger.error(f"Ошибка проверки обновлений: {str(e)}")
+            return False
+    
+    async def perform_update(self):
+        """Выполняет обновление файлов"""
         temp_dir = tempfile.mkdtemp(prefix="huekka_update_")
         
         try:
             # Клонируем репозиторий
-            success, stdout, stderr = self.run_command(f"git clone {self.repo_url} {temp_dir} --depth=1")
-            if not success:
-                shutil.rmtree(temp_dir, ignore_errors=True)
+            result = subprocess.run([
+                'git', 'clone', '--depth', '1', self.repo_url, temp_dir
+            ], capture_output=True, text=True, timeout=300)
+            
+            if result.returncode != 0:
+                logger.error(f"Ошибка клонирования репозитория: {result.stderr}")
                 return False
             
-            # Удаляем старые файлы и папки
+            # Обновляем файлы
             for file in self.update_files:
-                if os.path.exists(file):
-                    os.remove(file)
+                repo_file = Path(temp_dir) / file
+                local_file = Path(file)
+                
+                if repo_file.exists():
+                    if local_file.exists():
+                        local_file.unlink()
+                    shutil.copy2(repo_file, local_file)
             
+            # Обновляем папки
             for dir_name in self.update_dirs:
-                if os.path.exists(dir_name):
-                    shutil.rmtree(dir_name)
+                repo_dir = Path(temp_dir) / dir_name
+                local_dir = Path(dir_name)
+                
+                if repo_dir.exists():
+                    if local_dir.exists():
+                        shutil.rmtree(local_dir)
+                    shutil.copytree(repo_dir, local_dir)
             
-            # Копируем новые файлы и папки
-            for file in self.update_files:
-                repo_file = os.path.join(temp_dir, file)
-                if os.path.exists(repo_file):
-                    shutil.copy2(repo_file, file)
-            
-            for dir_name in self.update_dirs:
-                repo_dir = os.path.join(temp_dir, dir_name)
-                if os.path.exists(repo_dir):
-                    shutil.copytree(repo_dir, dir_name)
-            
-            # Очищаем временные файлы
-            shutil.rmtree(temp_dir, ignore_errors=True)
-            
-            # Удаляем временную папку репозитория, если она осталась
-            if os.path.exists("Huekka"):
-                shutil.rmtree("Huekka", ignore_errors=True)
-            if os.path.exists(".git"):
-                shutil.rmtree(".git", ignore_errors=True)
+            # Сохраняем время обновления
+            await self.set_local_last_update()
             
             return True
             
         except Exception as e:
+            logger.error(f"Ошибка выполнения обновления: {str(e)}")
+            return False
+        finally:
+            # Очищаем временные файлы
             shutil.rmtree(temp_dir, ignore_errors=True)
+    
+    async def auto_update(self):
+        """Автоматическая проверка и установка обновлений"""
+        try:
+            has_update = await self.check_for_updates()
+            
+            if has_update:
+                logger.info("Обнаружены обновления, начинаю установку...")
+                success = await self.perform_update()
+                
+                if success:
+                    logger.info("Обновление успешно установлено")
+                    return True
+                else:
+                    logger.error("Ошибка установки обновления")
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Ошибка автоматического обновления: {str(e)}")
             return False
 
 class SessionManager:
@@ -303,23 +318,15 @@ async def setup_session():
 
 async def check_and_update():
     """Проверяет и устанавливает обновления автоматически"""
-    updater = Updater()
+    updater = GitHubUpdater()
     
-    # Проверяем обновления
-    has_update = updater.check_update()
-    
-    if has_update:
-        # Выполняем обновление
-        success = updater.perform_update()
-        
-        if success:
-            print(f"{Colors.GREEN} Update installed! Restarting...{Colors.ENDC}")
-            # Перезапускаем процесс
-            os.execl(sys.executable, sys.executable, "main.py")
-        else:
-            print(f"{Colors.RED}❌ Update failed!{Colors.ENDC}")
-    
-    # Если обновлений нет или обновление не удалось, продолжаем запуск
+    try:
+        # Проверяем и устанавливаем обновления
+        needs_restart = await updater.auto_update()
+        return needs_restart
+    except Exception as e:
+        logger.error(f"Ошибка при проверке обновлений: {str(e)}")
+        return False
 
 if __name__ == "__main__":
     session_path = Path("session") / "Huekka.session"
@@ -348,7 +355,10 @@ if __name__ == "__main__":
                 print(f"{Colors.YELLOW}⚠️ Continuing without encryption key...{Colors.ENDC}")
                 time.sleep(1)
                 # Проверяем и устанавливаем обновления
-                asyncio.run(check_and_update())
+                needs_restart = asyncio.run(check_and_update())
+                if needs_restart:
+                    print(f"{Colors.GREEN}✅ Update installed! Restarting...{Colors.ENDC}")
+                    os.execl(sys.executable, sys.executable, "main.py")
                 # Показываем приветственное сообщение
                 show_welcome()
                 # Запускаем бота
@@ -357,7 +367,10 @@ if __name__ == "__main__":
             asyncio.run(setup_session())
     else:
         # Проверяем и устанавливаем обновления
-        asyncio.run(check_and_update())
+        needs_restart = asyncio.run(check_and_update())
+        if needs_restart:
+            print(f"{Colors.GREEN}✅ Update installed! Restarting...{Colors.ENDC}")
+            os.execl(sys.executable, sys.executable, "main.py")
         # Показываем приветственное сообщение
         show_welcome()
         # Запускаем бота

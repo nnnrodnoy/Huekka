@@ -63,21 +63,6 @@ class LoaderModule:
             logger.error(f"Ошибка получения информации о пользователе: {str(e)}")
             return {"premium": False, "username": "unknown"}
 
-    def _camel_to_snake(self, name):
-        """Преобразует CamelCase в snake_case"""
-        name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-        return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
-
-    def _module_name_to_filename(self, module_name):
-        """Преобразует имя модуля в предполагаемое имя файла"""
-        # Пробуем разные варианты именования
-        variants = [
-            module_name.lower() + '.py',
-            self._camel_to_snake(module_name) + '.py',
-            module_name + '.py'
-        ]
-        return variants
-
     async def find_module_info(self, module_name):
         normalized_query = module_name.lower().strip()
         
@@ -104,42 +89,6 @@ class LoaderModule:
                     return name, await self.get_module_info(name)
         
         return None, None
-
-    def find_module_file(self, query):
-        normalized_query = query.lower().strip().replace('.py', '')
-        modules_dir = Path("modules").resolve()
-        
-        if not modules_dir.exists():
-            logger.error(f"Директория модулей не найдена: {modules_dir}")
-            return None
-
-        files = [f for f in modules_dir.iterdir() if f.is_file() and f.suffix == '.py']
-        
-        # Точное совпадение (без учета регистра)
-        for file in files:
-            if file.stem.lower() == normalized_query:
-                return file
-
-        # Частичное совпадение (70% сходства)
-        closest = difflib.get_close_matches(
-            normalized_query,
-            [f.stem.lower() for f in files],
-            n=1,
-            cutoff=0.7  # 70% сходства
-        )
-        
-        if closest:
-            for file in files:
-                if file.stem.lower() == closest[0]:
-                    return file
-        
-        # Попробуем найти файл с преобразованием CamelCase to snake_case
-        snake_case_name = self._camel_to_snake(normalized_query)
-        for file in files:
-            if file.stem.lower() == snake_case_name:
-                return file
-        
-        return None
 
     async def get_module_info(self, module_name):
         if module_name not in self.bot.modules:
@@ -225,6 +174,36 @@ class LoaderModule:
             await event.edit(f"[❌](emoji/5210952531676504517) {str(e)}")
             return False
 
+    async def unload_existing_module(self, module_name):
+        """Выгружает существующий модуль с таким же именем"""
+        if module_name in self.bot.modules:
+            # Удаляем команды модуля
+            commands_to_remove = [
+                cmd for cmd, data in self.bot.commands.items() 
+                if data.get("module") and data.get("module").lower() == module_name.lower()
+            ]
+            
+            for cmd in commands_to_remove:
+                del self.bot.commands[cmd]
+            
+            # Удаляем из sys.modules если есть
+            if module_name in sys.modules:
+                del sys.modules[module_name]
+            
+            # Удаляем из bot.modules если есть
+            if module_name in self.bot.modules:
+                del self.bot.modules[module_name]
+            
+            # Удаляем описание модуля если есть
+            if module_name in self.bot.module_descriptions:
+                del self.bot.module_descriptions[module_name]
+            
+            # Удаляем из module_files если есть
+            if module_name in self.bot.module_files:
+                del self.bot.module_files[module_name]
+            
+            logger.info(f"Модуль {module_name} выгружен перед загрузкой новой версии")
+
     async def load_module(self, event):
         if not event.is_reply:
             await event.edit("[ℹ️](emoji/5422439311196834318) **Ответьте на сообщение с файлом модуля!**")
@@ -264,27 +243,32 @@ class LoaderModule:
                 logger.warning(f"Не удалось установить зависимости для {module_name}")
                 return
             
+            # Проверяем, существует ли уже модуль с таким именем
+            final_path = Path("modules") / file_name
+            if final_path.exists():
+                # Выгружаем существующий модуль
+                await self.unload_existing_module(module_name)
+                # Удаляем старый файл
+                os.remove(final_path)
+                logger.info(f"Старая версия модуля {module_name} удалена")
+            
             # Загружаем модуль с анимацией
             async def load_module_task():
                 start_time = time.time()
                 before_commands = set(self.bot.commands.keys())
                 
-                spec = importlib.util.spec_from_file_location(module_name, module_file)
-                module = importlib.util.module_from_spec(spec)
-                
-                spec.loader.exec_module(module)
-                
-                if not hasattr(module, 'setup'):
-                    raise Exception("В модуле отсутствует функция setup()")
-                
-                final_path = Path("modules") / file_name
+                # Перемещаем файл в папку modules
                 os.rename(module_file, final_path)
                 module_file_path = str(final_path)
                 
+                # Загружаем модуль
                 spec = importlib.util.spec_from_file_location(module_name, module_file_path)
                 module = importlib.util.module_from_spec(spec)
                 sys.modules[module_name] = module
                 spec.loader.exec_module(module)
+                
+                if not hasattr(module, 'setup'):
+                    raise Exception("В модуле отсутствует функция setup()")
                 
                 module.setup(self.bot)
                 

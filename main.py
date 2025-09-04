@@ -1,5 +1,5 @@
 # ©️ nnnrodnoy, 2025
-# 💬 @nnnrodnoy 1111111
+# 💬 @nnnrodnoy
 # This file is part of Huekka
 # 🌐 https://github.com/nnnrodnoy/Huekka/
 # You can redistribute it and/or modify it under the terms of the MIT License
@@ -17,6 +17,8 @@ import shutil
 import tempfile
 import subprocess
 import logging
+import requests
+import zipfile
 from pathlib import Path
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
@@ -63,21 +65,22 @@ class GitHubUpdater:
         self.last_update_file = Path("data") / "last_update.txt"
         self.last_update_file.parent.mkdir(exist_ok=True)
     
-    async def get_latest_commit_date(self):
-        """Получает дату последнего коммита из репозитория"""
+    async def get_latest_commit_info(self):
+        """Получает информацию о последнем коммите из репозитория"""
         try:
-            # Используем GitHub API для получения информации о репозитории
+            # Альтернативный способ получения информации о репозитории
             result = subprocess.run([
-                'curl', '-s', 
-                f'https://api.github.com/repos/nnnrodnoy/Huekka/commits?per_page=1'
+                'git', 'ls-remote', '--heads', self.repo_url
             ], capture_output=True, text=True, timeout=30)
             
             if result.returncode == 0:
-                commits = json.loads(result.stdout)
-                if commits and len(commits) > 0:
-                    return commits[0]['commit']['committer']['date']
+                # Получаем хэш последнего коммита
+                lines = result.stdout.strip().split('\n')
+                if lines and lines[0]:
+                    latest_commit_hash = lines[0].split()[0]
+                    return latest_commit_hash
         except Exception as e:
-            logger.error(f"Ошибка получения даты коммита: {str(e)}")
+            logger.error(f"Ошибка получения информации о коммите: {str(e)}")
         
         return None
     
@@ -86,16 +89,18 @@ class GitHubUpdater:
         if self.last_update_file.exists():
             try:
                 with open(self.last_update_file, 'r') as f:
-                    return float(f.read().strip())
+                    content = f.read().strip()
+                    if content:
+                        return content
             except:
                 pass
-        return 0
+        return ""
     
-    async def set_local_last_update(self):
-        """Устанавливает текущее время как дату последнего обновления"""
+    async def set_local_last_update(self, commit_hash):
+        """Устанавливает хэш коммита как дату последнего обновления"""
         try:
             with open(self.last_update_file, 'w') as f:
-                f.write(str(time.time()))
+                f.write(commit_hash)
             return True
         except Exception as e:
             logger.error(f"Ошибка записи даты обновления: {str(e)}")
@@ -104,21 +109,16 @@ class GitHubUpdater:
     async def check_for_updates(self):
         """Проверяет наличие обновлений"""
         try:
-            # Получаем дату последнего коммита
-            commit_date_str = await self.get_latest_commit_date()
-            if not commit_date_str:
+            # Получаем хэш последнего коммита
+            latest_commit = await self.get_latest_commit_info()
+            if not latest_commit:
                 return False
             
-            # Конвертируем в timestamp
-            from datetime import datetime
-            commit_date = datetime.strptime(commit_date_str, '%Y-%m-%dT%H:%M:%SZ')
-            commit_timestamp = commit_date.timestamp()
+            # Получаем хэш последнего локального обновления
+            local_commit = await self.get_local_last_update()
             
-            # Получаем дату последнего локального обновления
-            local_timestamp = await self.get_local_last_update()
-            
-            # Если коммит новее нашего последнего обновления
-            return commit_timestamp > local_timestamp
+            # Если коммиты разные, есть обновление
+            return latest_commit != local_commit
             
         except Exception as e:
             logger.error(f"Ошибка проверки обновлений: {str(e)}")
@@ -129,37 +129,57 @@ class GitHubUpdater:
         temp_dir = tempfile.mkdtemp(prefix="huekka_update_")
         
         try:
-            # Клонируем репозиторий
-            result = subprocess.run([
-                'git', 'clone', '--depth', '1', self.repo_url, temp_dir
-            ], capture_output=True, text=True, timeout=300)
-            
-            if result.returncode != 0:
-                logger.error(f"Ошибка клонирования репозитория: {result.stderr}")
+            # Получаем хэш последнего коммита перед обновлением
+            latest_commit = await self.get_latest_commit_info()
+            if not latest_commit:
                 return False
+            
+            # Скачиваем архив с репозиторием
+            zip_url = f"{self.repo_url}/archive/refs/heads/main.zip"
+            zip_path = Path(temp_dir) / "huekka.zip"
+            
+            response = requests.get(zip_url, timeout=60)
+            if response.status_code != 200:
+                return False
+            
+            with open(zip_path, 'wb') as f:
+                f.write(response.content)
+            
+            # Распаковываем архив
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(temp_dir)
+            
+            extracted_dir = Path(temp_dir) / "Huekka-main"
             
             # Обновляем файлы
             for file in self.update_files:
-                repo_file = Path(temp_dir) / file
+                repo_file = extracted_dir / file
                 local_file = Path(file)
                 
                 if repo_file.exists():
-                    if local_file.exists():
-                        local_file.unlink()
+                    # Создаем директорию, если её нет
+                    local_file.parent.mkdir(parents=True, exist_ok=True)
+                    
+                    # Копируем файл
                     shutil.copy2(repo_file, local_file)
+                    logger.info(f"Обновлен файл: {file}")
             
             # Обновляем папки
             for dir_name in self.update_dirs:
-                repo_dir = Path(temp_dir) / dir_name
+                repo_dir = extracted_dir / dir_name
                 local_dir = Path(dir_name)
                 
                 if repo_dir.exists():
+                    # Удаляем старую папку, если существует
                     if local_dir.exists():
                         shutil.rmtree(local_dir)
+                    
+                    # Копируем новую папку
                     shutil.copytree(repo_dir, local_dir)
+                    logger.info(f"Обновлена папка: {dir_name}")
             
-            # Сохраняем время обновления
-            await self.set_local_last_update()
+            # Сохраняем хэш коммита как дату последнего обновления
+            await self.set_local_last_update(latest_commit)
             
             return True
             
@@ -173,6 +193,7 @@ class GitHubUpdater:
     async def auto_update(self):
         """Автоматическая проверка и установка обновлений"""
         try:
+            logger.info("Проверяем наличие обновлений...")
             has_update = await self.check_for_updates()
             
             if has_update:
@@ -184,6 +205,8 @@ class GitHubUpdater:
                     return True
                 else:
                     logger.error("Ошибка установки обновления")
+            else:
+                logger.info("Обновлений не обнаружено")
             
             return False
             

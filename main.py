@@ -1,5 +1,5 @@
 # ©️ nnnrodnoy, 2025
-# 💬 @nnnrodnoy 1111111111
+# 💬 @nnnrodnoy
 # This file is part of Huekka
 # 🌐 https://github.com/nnnrodnoy/Huekka/
 # You can redistribute it and/or modify it under the terms of the MIT License

@@ -10,7 +10,6 @@ import logging
 import re
 from telethon import events
 from telethon.errors import RPCError
-from config import BotConfig
 
 logger = logging.getLogger("UserBot.AutoCleaner")
 
@@ -18,11 +17,21 @@ class AutoCleaner:
     def __init__(self, bot, enabled=None, delay=None):
         self.bot = bot
         
-        self.enabled = enabled if enabled is not None else BotConfig.AUTOCLEAN["enabled"]
-        self.default_delay = delay if delay is not None else BotConfig.AUTOCLEAN["default_delay"]
+        # Переносим настройки из конфига прямо в код
+        self.enabled = enabled if enabled is not None else True
+        self.default_delay = delay if delay is not None else 1800  # 30 минут в секундах
         
-        autoclean_config = BotConfig.AUTOCLEAN
-        self.tracked_commands = autoclean_config["tracked_commands"]
+        # Шаблоны команд для автоочистки
+        self.tracked_commands = [
+            r'^{}\s*(ulm|unload)\b',
+            r'^{}\s*lm\b',
+            r'^{}\s*(help|h|помощь)\b',
+            r'^{}\s*(restart|reboot)\b',
+            r'^{}\s*(update|upgrade)\b',
+            r'^{}\s*(upcheck|checkupdate)\b',
+            r'^{}\s*(config|conf|настройки)\b',
+            r'^{}\s*config\s+prefix\b'
+        ]
         
         self.compiled_patterns = [
             re.compile(pattern.format(re.escape(bot.command_prefix)))

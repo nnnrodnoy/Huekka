@@ -11,7 +11,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
 # Цвета для вывода
-PURPLE='\033[0;35m'
+GREEN_BOLD='\033[1;32m'  # Зеленый жирный вместо розового
 CYAN='\033[0;36m'
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -20,7 +20,7 @@ NC='\033[0m' # No Color
 
 # Функция для отображения статуса
 print_status() {
-    echo -e "${PURPLE}[Huekka]${NC} $1"
+    echo -e "${GREEN_BOLD}[Huekka]${NC} $1"
 }
 
 # Функция для отображения ошибки

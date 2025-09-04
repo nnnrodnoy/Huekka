@@ -1,6 +1,6 @@
 #!/bin/bash
 # ©️ nnnrodnoy, 2025
-# 💬 @nnnrodnoy 11111
+# 💬 @nnnrodnoy
 # This file is part of Huekka
 # 🌐 https://github.com/stepka5/Huekka
 # You can redistribute it and/or modify it under the terms of the MIT License

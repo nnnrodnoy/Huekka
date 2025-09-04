@@ -56,6 +56,7 @@ class Colors:
     MAGENTA = '\033[95m'
     ENDC = '\033[0m'
     BOLD = '\033[1m'
+    GREEN_BOLD = '\033[1;92m'  # Жирный зеленый цвет
 
 class GitHubUpdater:
     def __init__(self):
@@ -124,9 +125,28 @@ class GitHubUpdater:
             logger.error(f"Ошибка проверки обновлений: {str(e)}")
             return False
     
+    def _get_file_hash(self, file_path):
+        """Вычисляет хэш файла для сравнения"""
+        if not file_path.exists():
+            return None
+        
+        hasher = hashlib.sha256()
+        with open(file_path, 'rb') as f:
+            while True:
+                data = f.read(65536)  # 64kb chunks
+                if not data:
+                    break
+                hasher.update(data)
+        return hasher.hexdigest()
+    
+    def _print_update_status(self, message):
+        """Красивый вывод статуса обновления"""
+        print(f"{Colors.GREEN_BOLD}[Huekka Update]{Colors.ENDC} {message}")
+    
     async def perform_update(self):
-        """Выполняет обновление файлов"""
+        """Выполняет обновление только измененных файлов"""
         temp_dir = tempfile.mkdtemp(prefix="huekka_update_")
+        updated_files = 0
         
         try:
             # Получаем хэш последнего коммита перед обновлением
@@ -151,7 +171,7 @@ class GitHubUpdater:
             
             extracted_dir = Path(temp_dir) / "Huekka-main"
             
-            # Обновляем файлы
+            # Обновляем файлы только если они изменились
             for file in self.update_files:
                 repo_file = extracted_dir / file
                 local_file = Path(file)
@@ -160,28 +180,54 @@ class GitHubUpdater:
                     # Создаем директорию, если её нет
                     local_file.parent.mkdir(parents=True, exist_ok=True)
                     
-                    # Копируем файл
-                    shutil.copy2(repo_file, local_file)
-                    logger.info(f"Обновлен файл: {file}")
+                    # Проверяем, изменился ли файл
+                    repo_hash = self._get_file_hash(repo_file)
+                    local_hash = self._get_file_hash(local_file)
+                    
+                    if repo_hash != local_hash:
+                        # Копируем файл только если он изменился
+                        shutil.copy2(repo_file, local_file)
+                        self._print_update_status(f"Updated: {file}")
+                        updated_files += 1
+                    else:
+                        logger.info(f"File unchanged: {file}")
             
-            # Обновляем папки
+            # Обновляем папки с проверкой изменений
             for dir_name in self.update_dirs:
                 repo_dir = extracted_dir / dir_name
                 local_dir = Path(dir_name)
                 
                 if repo_dir.exists():
-                    # Удаляем старую папку, если существует
-                    if local_dir.exists():
-                        shutil.rmtree(local_dir)
-                    
-                    # Копируем новую папку
-                    shutil.copytree(repo_dir, local_dir)
-                    logger.info(f"Обновлена папка: {dir_name}")
+                    # Рекурсивно обходим все файлы в директории
+                    for root, _, files in os.walk(repo_dir):
+                        for file in files:
+                            repo_file_path = Path(root) / file
+                            relative_path = repo_file_path.relative_to(repo_dir)
+                            local_file_path = local_dir / relative_path
+                            
+                            # Проверяем, изменился ли файл
+                            repo_hash = self._get_file_hash(repo_file_path)
+                            local_hash = self._get_file_hash(local_file_path)
+                            
+                            if repo_hash != local_hash:
+                                # Создаем директорию, если её нет
+                                local_file_path.parent.mkdir(parents=True, exist_ok=True)
+                                
+                                # Копируем файл только если он изменился
+                                shutil.copy2(repo_file_path, local_file_path)
+                                self._print_update_status(f"Updated: {local_file_path}")
+                                updated_files += 1
+                            else:
+                                logger.info(f"File unchanged: {local_file_path}")
             
-            # Сохраняем хэш коммита как дату последнего обновления
-            await self.set_local_last_update(latest_commit)
-            
-            return True
+            if updated_files > 0:
+                # Сохраняем хэш коммита как дату последнего обновления
+                await self.set_local_last_update(latest_commit)
+                self._print_update_status(f"Updated {updated_files} files")
+                return True
+            else:
+                self._print_update_status("No files need updating")
+                return False
             
         except Exception as e:
             logger.error(f"Ошибка выполнения обновления: {str(e)}")
@@ -193,20 +239,20 @@ class GitHubUpdater:
     async def auto_update(self):
         """Автоматическая проверка и установка обновлений"""
         try:
-            logger.info("Проверяем наличие обновлений...")
+            self._print_update_status("Checking for updates...")
             has_update = await self.check_for_updates()
             
             if has_update:
-                logger.info("Обнаружены обновления, начинаю установку...")
+                self._print_update_status("Updates found, installing...")
                 success = await self.perform_update()
                 
                 if success:
-                    logger.info("Обновление успешно установлено")
+                    self._print_update_status("Update successfully installed")
                     return True
                 else:
-                    logger.error("Ошибка установки обновления")
+                    self._print_update_status("Error installing update")
             else:
-                logger.info("Обновлений не обнаружено")
+                self._print_update_status("No updates available")
             
             return False
             

@@ -242,8 +242,8 @@ class UserInfoModule:
         return {
             "name": "UserInfo",
             "description": "Получение информации о пользователях, чатах и каналах",
-            "developer": "@BotHuekka",
-            "version": "1.0.0",
+            "developer": "@AlexDev",
+            "version": "1.2.0",
             "commands": [
                 {
                     "command": "userinfo",
@@ -256,8 +256,8 @@ def get_module_info():
     return {
         "name": "UserInfo",
         "description": "Получение информации о пользователях, чатах и каналах",
-        "developer": "@BotHuekka",
-        "version": "1.0.0",
+        "developer": "@AlexDev",
+        "version": "1.2.0",
         "commands": [
             {
                 "command": "userinfo",

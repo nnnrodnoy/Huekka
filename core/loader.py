@@ -18,7 +18,7 @@ import time
 import random
 import re
 from config import BotConfig
-from core.formatters import loader_format, msg
+from core.formatters import loader_format
 
 logger = logging.getLogger("UserBot.Loader")
 
@@ -179,7 +179,7 @@ class LoaderModule:
             )
         except Exception as e:
             logger.error(f"Ошибка установки зависимостей: {str(e)}")
-            await event.edit(f"[❌](emoji/5210952531676504517) {str(e)}")
+            await event.edit(f"[❌](emoji/{self.error_emoji_id}) {str(e)}")
             return False
 
     async def unload_existing_module(self, module_name):
@@ -289,7 +289,7 @@ class LoaderModule:
                 break
         
         if not file_name:
-            await event.edit("[🚫](emoji/5240241223632954241) **Не удалось определить имя файла!**")
+            await event.edit("[🚫](emoji/5240241223632954241) **Не удалось определить имени файла!**")
             return
 
         module_name = os.path.basename(file_name).replace(".py", "")
@@ -397,7 +397,8 @@ class LoaderModule:
                 except:
                     pass
             
-            error_msg = msg.error("Ошибка загрузки модуля", str(e))
+            # Заменяем msg.error на прямое создание сообщения об ошибке
+            error_msg = f"[❌](emoji/{self.error_emoji_id}) **Ошибка загрузки модуля:** {str(e)}"
             await event.edit(error_msg)
         finally:
             try:

@@ -31,6 +31,7 @@ class LoaderModule:
         self.command_emoji_id = BotConfig.EMOJI_IDS["command"]
         self.dev_emoji_id = BotConfig.EMOJI_IDS["dev"]
         self.info_emoji_id = BotConfig.EMOJI_IDS["info"]
+        self.error_emoji_id = BotConfig.EMOJI_IDS["error"]
         
         self.min_animation_time = BotConfig.LOADER["min_animation_time"]
         self.delete_delay = BotConfig.LOADER["delete_delay"]
@@ -46,7 +47,14 @@ class LoaderModule:
             module_name="Loader"
         )
         
-        bot.set_module_description("Loader", "Динамическая загрузка модулей")
+        bot.register_command(
+            cmd="ulm",
+            handler=self.unload_module,
+            description="Выгрузить модуль по имени",
+            module_name="Loader"
+        )
+        
+        bot.set_module_description("Loader", "Динамическая загрузка и выгрузка модулей")
 
     def get_random_smile(self):
         """Возвращает случайный смайл из конфигурации"""
@@ -204,6 +212,63 @@ class LoaderModule:
             
             logger.info(f"Модуль {module_name} выгружен перед загрузкой новой версии")
 
+    async def unload_module(self, event):
+        """Выгружает модуль по имени"""
+        args = event.text.split(" ", 1)
+        if len(args) < 2:
+            await event.edit("❌ Укажите название модуля для выгрузки.")
+            return
+
+        module_name = args[1].strip()
+        
+        # Проверяем, что модуль существует и не является системным
+        if module_name not in self.bot.modules:
+            await event.edit(f"❌ Модуль `{module_name}` не найден.")
+            return
+            
+        if module_name in self.bot.core_modules:
+            await event.edit(f"❌ Модуль `{module_name}` является системным и не может быть выгружен.")
+            return
+
+        try:
+            # Удаляем команды модуля
+            commands_to_remove = []
+            for cmd, data in self.bot.commands.items():
+                if data.get("module") and data.get("module").lower() == module_name.lower():
+                    commands_to_remove.append(cmd)
+                    
+            for cmd in commands_to_remove:
+                del self.bot.commands[cmd]
+
+            # Удаляем из sys.modules
+            if module_name in sys.modules:
+                del sys.modules[module_name]
+
+            # Удаляем из bot.modules
+            if module_name in self.bot.modules:
+                del self.bot.modules[module_name]
+
+            # Удаляем описание модуля
+            if module_name in self.bot.module_descriptions:
+                del self.bot.module_descriptions[module_name]
+
+            # Удаляем информацию о файле модуля
+            file_removed = False
+            if module_name in self.bot.module_files:
+                file_path = self.bot.module_files[module_name]
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    file_removed = True
+                del self.bot.module_files[module_name]
+
+            file_msg = " и файл удален" if file_removed else ""
+            await event.edit(f"✅ Модуль `{module_name}` успешно выгружен{file_msg}.")
+
+        except Exception as e:
+            error_msg = f"❌ Ошибка при выгрузке модуля: {str(e)}"
+            await event.edit(error_msg)
+            logger.error(f"Ошибка выгрузки модуля {module_name}: {str(e)}")
+
     async def load_module(self, event):
         if not event.is_reply:
             await event.edit("[ℹ️](emoji/5422439311196834318) **Ответьте на сообщение с файлом модуля!**")
@@ -340,6 +405,24 @@ class LoaderModule:
                     os.remove(temp_file)
             except:
                 pass
+
+    def get_module_info(self):
+        return {
+            "name": "Loader",
+            "description": "Динамическая загрузка и выгрузка модулей",
+            "developer": "@BotHuekka",
+            "version": "1.0.0",
+            "commands": [
+                {
+                    "command": "lm",
+                    "description": "Загрузить модуль из файла"
+                },
+                {
+                    "command": "ulm",
+                    "description": "Выгрузить модуль по имени"
+                }
+            ]
+        }
 
 def setup(bot):
     LoaderModule(bot)

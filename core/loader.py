@@ -271,12 +271,12 @@ class LoaderModule:
 
     async def load_module(self, event):
         if not event.is_reply:
-            await event.edit("[ℹ️](emoji/5422439311196834318) **Ответьте на сообщение с файлом модуля!**")
+            await event.edit(f"[ℹ️](emoji/{self.info_emoji_id}) **Ответьте на сообщение с файлом модуля!**")
             return
 
         reply = await event.get_reply_message()
         if not reply.document or not reply.document.mime_type == "text/x-python":
-            await event.edit("[🚫](emoji/5240241223632954241) **Это не Python-файл!**")
+            await event.edit(f"[🚫](emoji/{self.error_emoji_id}) **Это не Python-файл!**")
             return
 
         user_info = await self.get_user_info(event)
@@ -289,7 +289,7 @@ class LoaderModule:
                 break
         
         if not file_name:
-            await event.edit("[🚫](emoji/5240241223632954241) **Не удалось определить имени файла!**")
+            await event.edit(f"[🚫](emoji/{self.error_emoji_id}) **Не удалось определить имя файла!**")
             return
 
         module_name = os.path.basename(file_name).replace(".py", "")
@@ -397,7 +397,7 @@ class LoaderModule:
                 except:
                     pass
             
-            # Заменяем msg.error на прямое создание сообщения об ошибке
+            # Создаем сообщение об ошибке напрямую
             error_msg = f"[❌](emoji/{self.error_emoji_id}) **Ошибка загрузки модуля:** {str(e)}"
             await event.edit(error_msg)
         finally:

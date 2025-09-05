@@ -12,7 +12,7 @@ class BotConfig:
     GITHUB_URL = "https://github.com/stepka5/Huekka"
     
     # Список основных модулей ядра
-    CORE_MODULES = ["Help", "System", "Loader", "Updater", "Configurator", 
+    CORE_MODULES = ["Help", "System", "Loader", "Updater", "Huekka", "Configurator", 
                     "AutoCleaner", "LimiterTest", "DependencyInstaller"]
     
     # Список стандартных модулей для help

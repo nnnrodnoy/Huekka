@@ -16,8 +16,8 @@ class BotConfig:
                     "AutoCleaner", "LimiterTest", "DependencyInstaller"]
     
     # Список стандартных модулей для help
-    STOCK_MODULES = ["Help", "System", "Loader", "Huekka", "Updater", "Configurator", 
-                     "AutoCleaner"]
+    STOCK_MODULES = ["Help", "System", "Loader", "Updater", "Configurator", 
+                     "AutoCleaner" "Huekka"]
     
     # Настройки APILimiter с новой логикой ограничений
     API_LIMITER = {

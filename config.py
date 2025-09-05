@@ -12,11 +12,11 @@ class BotConfig:
     GITHUB_URL = "https://github.com/stepka5/Huekka"
     
     # Список основных модулей ядра
-    CORE_MODULES = ["Help", "System", "Loader", "Updater", "Huekka", "Configurator", 
+    CORE_MODULES = ["Help", "System", "Loader", "Updater", "Configurator", 
                     "AutoCleaner", "LimiterTest", "DependencyInstaller"]
     
     # Список стандартных модулей для help
-    STOCK_MODULES = ["Help", "System", "Loader", "Updater", "Configurator", 
+    STOCK_MODULES = ["Help", "System", "Loader", "Huekka", "Updater", "Configurator", 
                      "AutoCleaner"]
     
     # Настройки APILimiter с новой логикой ограничений

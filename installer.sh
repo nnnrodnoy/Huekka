@@ -80,7 +80,7 @@ setup_bashrc() {
     # Создаем .bashrc, если его нет
     if [ ! -f ~/.bashrc ]; then
         touch ~/.bashrc
-        echo -e "${GREEN}✓ Created .bashrc file${NC}
+        echo -e "${GREEN}✓ Created .bashrc file${NC}"
     fi
     
     # Включаем автозапуск через start_bot.sh
@@ -101,8 +101,8 @@ setup_default_config() {
     # Создаем папку cash если её нет
     mkdir -p cash
     
-    # Устанавливаем настройки по умолчанию через Python
-    python -c "
+    # Устанавливаем настройки по умолчанию через Python с использованием HEREDOC
+    python << EOF
 import sqlite3
 import os
 
@@ -113,15 +113,15 @@ c.execute('''CREATE TABLE IF NOT EXISTS global_config (
              key TEXT PRIMARY KEY,
              value TEXT)''')
 # Устанавливаем префикс по умолчанию
-c.execute(\"INSERT OR REPLACE INTO global_config (key, value) VALUES ('command_prefix', '.')\")
+c.execute("INSERT OR REPLACE INTO global_config (key, value) VALUES ('command_prefix', '.')")
 # Включаем автоклинер
-c.execute(\"INSERT OR REPLACE INTO global_config (key, value) VALUES ('autoclean_enabled', 'True')\")
+c.execute("INSERT OR REPLACE INTO global_config (key, value) VALUES ('autoclean_enabled', 'True')")
 # Устанавливаем время автоклинера
-c.execute(\"INSERT OR REPLACE INTO global_config (key, value) VALUES ('autoclean_delay', '1800')\")
+c.execute("INSERT OR REPLACE INTO global_config (key, value) VALUES ('autoclean_delay', '1800')")
 conn.commit()
 conn.close()
 print('Database configuration completed successfully')
-"
+EOF
     
     echo -e "${GREEN}✓ Default configuration applied successfully${NC}"
     return 0

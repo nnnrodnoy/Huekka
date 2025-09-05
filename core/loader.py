@@ -125,33 +125,56 @@ class LoaderModule:
         
         return None, None
 
-    async def get_module_info(self, module_name):
-        if module_name not in self.bot.modules:
-            return None
+  async def get_module_info(self, module_name):
+    if module_name not in self.bot.modules:
+        return None
             
-        try:
-            module = sys.modules.get(module_name)
-            if module and hasattr(module, 'get_module_info'):
-                info = module.get_module_info()
-                return info
-        except Exception:
-            pass
-        
-        commands = []
-        for cmd, data in self.bot.modules[module_name].items():
-            commands.append({
-                "command": cmd,
-                "description": data.get("description", "Без описания")
-            })
-        
-        return {
-            "name": module_name,
-            "description": self.bot.module_descriptions.get(module_name, ""),
-            "commands": commands,
-            "is_stock": module_name in self.bot.core_modules,
-            "version": "1.0.0",
-            "developer": "@BotHuekka"
-        }
+    try:
+        module = sys.modules.get(module_name)
+        if module:
+            # Пытаемся получить информацию через get_module_info
+            if hasattr(module, 'get_module_info'):
+                return module.get_module_info()
+            
+            # Если функции get_module_info нет, пытаемся получить информацию из переменных модуля
+            developer = getattr(module, 'developer', '@BotHuekka')
+            version = getattr(module, 'version', '1.0.0')
+            description = getattr(module, 'description', self.bot.module_descriptions.get(module_name, ""))
+            
+            commands = []
+            for cmd, data in self.bot.modules[module_name].items():
+                commands.append({
+                    "command": cmd,
+                    "description": data.get("description", "Без описания")
+                })
+            
+            return {
+                "name": module_name,
+                "description": description,
+                "commands": commands,
+                "is_stock": module_name in self.bot.core_modules,
+                "version": version,
+                "developer": developer
+            }
+    except Exception:
+        pass
+    
+    # Если не удалось получить информацию из модуля, создаем базовую информацию
+    commands = []
+    for cmd, data in self.bot.modules[module_name].items():
+        commands.append({
+            "command": cmd,
+            "description": data.get("description", "Без описания")
+        })
+    
+    return {
+        "name": module_name,
+        "description": self.bot.module_descriptions.get(module_name, ""),
+        "commands": commands,
+        "is_stock": module_name in self.bot.core_modules,
+        "version": "1.0.0",
+        "developer": "@BotHuekka"
+    }
 
     async def animate_loading_until_done(self, event, message, is_premium, coroutine):
         """Анимирует загрузку до завершения корутины"""

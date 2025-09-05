@@ -33,6 +33,7 @@ class LoaderModule:
         self.dev_emoji_id = BotConfig.EMOJI_IDS.get("dev", "5370932688993656500")
         self.info_emoji_id = BotConfig.EMOJI_IDS.get("info", "5422439311196834318")
         self.error_emoji_id = BotConfig.EMOJI_IDS.get("error", "5240241223632954241")
+        self.unload_emoji_id = "5251522431977291010"  # Специальный emoji для удаления
         
         self.min_animation_time = BotConfig.LOADER.get("min_animation_time", 1.0)
         self.delete_delay = BotConfig.LOADER.get("delete_delay", 5.0)
@@ -71,6 +72,31 @@ class LoaderModule:
         except Exception as e:
             logger.error(f"Ошибка получения информации о пользователе: {str(e)}")
             return {"premium": False, "username": "unknown"}
+
+    async def find_module_by_name(self, module_query):
+        """Находит модуль по имени с учетом частичных совпадений"""
+        normalized_query = module_query.lower().strip()
+        
+        # Сначала проверяем точное совпадение
+        if normalized_query in [name.lower() for name in self.bot.modules.keys()]:
+            for name in self.bot.modules.keys():
+                if name.lower() == normalized_query:
+                    return name
+        
+        # Ищем по частичному совпадению (70% сходство)
+        closest = difflib.get_close_matches(
+            normalized_query,
+            [name.lower() for name in self.bot.modules.keys()],
+            n=1,
+            cutoff=0.7
+        )
+        
+        if closest:
+            for name in self.bot.modules.keys():
+                if name.lower() == closest[0]:
+                    return name
+        
+        return None
 
     async def find_module_info(self, module_name):
         normalized_query = module_name.lower().strip()
@@ -220,55 +246,68 @@ class LoaderModule:
             await event.edit("❌ Укажите название модуля для выгрузки.")
             return
 
-        module_name = args[1].strip()
+        module_query = args[1].strip()
         
-        # Проверяем, что модуль существует и не является системным
-        if module_name not in self.bot.modules:
-            await event.edit(f"❌ Модуль `{module_name}` не найден.")
+        # Ищем модуль с учетом частичных совпадений
+        found_module = await self.find_module_by_name(module_query)
+        
+        if not found_module:
+            await event.edit(f"❌ Модуль `{module_query}` не найден.")
             return
             
-        if module_name in self.bot.core_modules:
-            await event.edit(f"❌ Модуль `{module_name}` является системным и не может быть выгружен.")
+        if found_module in self.bot.core_modules:
+            await event.edit(f"❌ Модуль `{found_module}` является системным и не может быть выгружен.")
             return
 
         try:
             # Удаляем команды модуля
             commands_to_remove = []
             for cmd, data in self.bot.commands.items():
-                if data.get("module") and data.get("module").lower() == module_name.lower():
+                if data.get("module") and data.get("module").lower() == found_module.lower():
                     commands_to_remove.append(cmd)
                     
             for cmd in commands_to_remove:
                 del self.bot.commands[cmd]
 
             # Удаляем из sys.modules
-            if module_name in sys.modules:
-                del sys.modules[module_name]
+            if found_module in sys.modules:
+                del sys.modules[found_module]
 
             # Удаляем из bot.modules
-            if module_name in self.bot.modules:
-                del self.bot.modules[module_name]
+            if found_module in self.bot.modules:
+                del self.bot.modules[found_module]
 
             # Удаляем описание модуля
-            if module_name in self.bot.module_descriptions:
-                del self.bot.module_descriptions[module_name]
+            if found_module in self.bot.module_descriptions:
+                del self.bot.module_descriptions[found_module]
 
             # Удаляем информацию о файле модуля
             file_removed = False
-            if module_name in self.bot.module_files:
-                file_path = self.bot.module_files[module_name]
+            if found_module in self.bot.module_files:
+                file_path = self.bot.module_files[found_module]
                 if os.path.exists(file_path):
                     os.remove(file_path)
                     file_removed = True
-                del self.bot.module_files[module_name]
+                del self.bot.module_files[found_module]
 
-            file_msg = " и файл удален" if file_removed else ""
-            await event.edit(f"✅ Модуль `{module_name}` успешно выгружен{file_msg}.")
+            # Форматируем сообщение об успешном удалении
+            user_info = await self.get_user_info(event)
+            is_premium = user_info["premium"]
+            
+            if is_premium:
+                success_msg = f"[▪️](emoji/{self.unload_emoji_id}) `{found_module}` __успешно удалён, используйте {self.bot.command_prefix}help для просмотра модулей и команд.__"
+            else:
+                success_msg = f"▪️ `{found_module}` __успешно удалён, используйте {self.bot.command_prefix}help для просмотра модулей и команд.__"
+            
+            if file_removed:
+                success_msg += "\n📁 Файл модуля также был удалён."
+                
+            await event.edit(success_msg)
 
         except Exception as e:
             error_msg = f"❌ Ошибка при выгрузке модуля: {str(e)}"
             await event.edit(error_msg)
-            logger.error(f"Ошибка выгрузки модуля {module_name}: {str(e)}")
+            logger.error(f"Ошибка выгрузки модуля {found_module}: {str(e)}")
 
     async def load_module(self, event):
         if not event.is_reply:

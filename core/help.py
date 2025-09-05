@@ -49,53 +49,76 @@ class HelpModule:
     
     def get_random_smile(self):
         return self.bot.db.get_random_smile()
-async def get_module_info(self, module_name):
-    if module_name not in self.bot.modules:
-        return None
-        
-    try:
-        module = sys.modules.get(module_name)
-        if module:
-            # Пытаемся получить информацию через get_module_info
-            if hasattr(module, 'get_module_info'):
-                info = module.get_module_info()
+
+    async def get_module_info(self, module_name):
+        if module_name not in self.bot.modules:
+            return None
+            
+        try:
+            module = sys.modules.get(module_name)
+            if module:
+                # Пытаемся получить информацию через get_module_info
+                if hasattr(module, 'get_module_info'):
+                    info = module.get_module_info()
+                    
+                    db_info = self.bot.db.get_module_settings(module_name)
+                    if db_info and "load_count" in db_info:
+                        info["load_count"] = db_info.get("load_count", 0)
+                        info["last_loaded"] = db_info.get("last_loaded", 0)
+                    
+                    return info
+                
+                # Если функции get_module_info нет, пытаемся получить информацию из переменных модуля
+                developer = getattr(module, 'developer', '@BotHuekka')
+                version = getattr(module, 'version', '1.0.0')
+                description = getattr(module, 'description', self.bot.module_descriptions.get(module_name, ""))
+                
+                commands = []
+                for cmd, data in self.bot.modules[module_name].items():
+                    commands.append({
+                        "command": cmd,
+                        "description": data.get("description", "Без описания")
+                    })
                 
                 db_info = self.bot.db.get_module_settings(module_name)
-                if db_info and "load_count" in db_info:
-                    info["load_count"] = db_info.get("load_count", 0)
-                    info["last_loaded"] = db_info.get("last_loaded", 0)
+                load_count = db_info.get("load_count", 1) if db_info else 1
+                last_loaded = db_info.get("last_loaded", 0) if db_info else 0
                 
-                return info
-            
-            # Если функции get_module_info нет, пытаемся получить информацию из переменных модуля
-            developer = getattr(module, 'developer', '@BotHuekka')
-            version = getattr(module, 'version', '1.0.0')
-            description = getattr(module, 'description', self.bot.module_descriptions.get(module_name, ""))
-    except Exception:
-        pass
-    
-    # Если не удалось получить информацию из модуля, создаем базовую информацию
-    commands = []
-    for cmd, data in self.bot.modules[module_name].items():
-        commands.append({
-            "command": cmd,
-            "description": data.get("description", "Без описания")
-        })
-    
-    db_info = self.bot.db.get_module_settings(module_name)
-    load_count = db_info.get("load_count", 1) if db_info else 1
-    last_loaded = db_info.get("last_loaded", 0) if db_info else 0
-    
-    return {
-        "name": module_name,
-        "description": self.bot.module_descriptions.get(module_name, ""),
-        "commands": commands,
-        "is_stock": module_name in self.stock_modules,
-        "version": "1.0.0",
-        "developer": "@BotHuekka",
-        "load_count": load_count,
-        "last_loaded": last_loaded
-    }
+                return {
+                    "name": module_name,
+                    "description": description,
+                    "commands": commands,
+                    "is_stock": module_name in self.stock_modules,
+                    "version": version,
+                    "developer": developer,
+                    "load_count": load_count,
+                    "last_loaded": last_loaded
+                }
+        except Exception:
+            pass
+        
+        # Если не удалось получить информацию из модуля, создаем базовую информацию
+        commands = []
+        for cmd, data in self.bot.modules[module_name].items():
+            commands.append({
+                "command": cmd,
+                "description": data.get("description", "Без описания")
+            })
+        
+        db_info = self.bot.db.get_module_settings(module_name)
+        load_count = db_info.get("load_count", 1) if db_info else 1
+        last_loaded = db_info.get("last_loaded", 0) if db_info else 0
+        
+        return {
+            "name": module_name,
+            "description": self.bot.module_descriptions.get(module_name, ""),
+            "commands": commands,
+            "is_stock": module_name in self.stock_modules,
+            "version": "1.0.0",
+            "developer": "@BotHuekka",
+            "load_count": load_count,
+            "last_loaded": last_loaded
+        }
 
     async def get_command_info(self, command_name):
         normalized_cmd = command_name.lstrip(self.bot.command_prefix).lower()

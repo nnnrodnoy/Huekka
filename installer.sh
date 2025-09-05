@@ -28,7 +28,7 @@ show_header() {
     echo " |_____||_| |_||___/ \__| \__,_||_||_| \___||_| "
     echo -e "${NC}"
     echo -e "${BOLD_GREEN} Telegram: @BotHuekka | GitHub: nnnrodnoy${NC}"
-    echo -e "${BOLD_GREEN} ═══════════════════════════════════════${NC}"
+    echo -e "${BOLD_GREEN} ════════════════════════════════════════${NC}"
     echo
 }
 

@@ -447,7 +447,7 @@ class LoaderModule:
             except:
                 pass
 
-    def get_module_info(self):
+    def get_loader_info(self):
         return {
             "name": "Loader",
             "description": "Динамическая загрузка и выгрузка модулей",
@@ -464,6 +464,24 @@ class LoaderModule:
                 }
             ]
         }
+
+def get_loader_info():
+    return {
+        "name": "Loader",
+        "description": "Динамическая загрузка и выгрузка модулей",
+        "developer": "@BotHuekka",
+        "version": "1.0.0",
+        "commands": [
+            {
+                "command": "lm",
+                "description": "Загрузить модуль из файла"
+            },
+            {
+                "command": "ulm",
+                "description": "Выгрузить модуль по имени"
+            }
+        ]
+    }
 
 def setup(bot):
     LoaderModule(bot)

@@ -129,13 +129,13 @@ EOF
 
 # Функция для отображения текущих настроек
 show_current_settings() {
-    echo -e "${MAGENTA}════════════════════ CURRENT SETTINGS ════════════════════${NC}"
+    echo -e "${BOLD_MAGENTA}════════════════════ CURRENT SETTINGS ════════════════════${NC}"
     echo -e "${CYAN}Command Prefix:${NC} ."
     echo -e "${CYAN}Autocleaner:${NC} Enabled (1800s)"
     echo -e "${CYAN}Autostart:${NC} Enabled"
     echo -e "${CYAN}Environment:${NC} Termux (global packages)"
     echo -e "${CYAN}Log File:${NC} bot.log"
-    echo -e "${MAGENTA}══════════════════════════════════════════════════════════${NC}"
+    echo -e "${BOLD_MAGENTA}══════════════════════════════════════════════════════════${NC}"
     echo
     echo -e "${YELLOW}Please review these settings. Press ENTER to continue...${NC}"
     read -n 1

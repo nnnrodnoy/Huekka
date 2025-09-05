@@ -26,15 +26,16 @@ class LoaderModule:
     def __init__(self, bot):
         self.bot = bot
         
-        self.loader_emoji_id = BotConfig.EMOJI_IDS["loader"]
-        self.loaded_emoji_id = BotConfig.EMOJI_IDS["loaded"]
-        self.command_emoji_id = BotConfig.EMOJI_IDS["command"]
-        self.dev_emoji_id = BotConfig.EMOJI_IDS["dev"]
-        self.info_emoji_id = BotConfig.EMOJI_IDS["info"]
-        self.error_emoji_id = BotConfig.EMOJI_IDS["error"]
+        # Безопасное получение emoji ID с значениями по умолчанию
+        self.loader_emoji_id = BotConfig.EMOJI_IDS.get("loader", "5370932688993656500")
+        self.loaded_emoji_id = BotConfig.EMOJI_IDS.get("loaded", "5370932688993656500")
+        self.command_emoji_id = BotConfig.EMOJI_IDS.get("command", "5370932688993656500")
+        self.dev_emoji_id = BotConfig.EMOJI_IDS.get("dev", "5370932688993656500")
+        self.info_emoji_id = BotConfig.EMOJI_IDS.get("info", "5422439311196834318")
+        self.error_emoji_id = BotConfig.EMOJI_IDS.get("error", "5240241223632954241")
         
-        self.min_animation_time = BotConfig.LOADER["min_animation_time"]
-        self.delete_delay = BotConfig.LOADER["delete_delay"]
+        self.min_animation_time = BotConfig.LOADER.get("min_animation_time", 1.0)
+        self.delete_delay = BotConfig.LOADER.get("delete_delay", 5.0)
         
         # Словарь для хранения соответствия имен модулей и файлов
         if not hasattr(bot, 'module_files'):

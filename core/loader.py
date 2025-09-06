@@ -517,6 +517,7 @@ class LoaderModule:
                 return loaded_message
             
             # Запускаем загрузку модуля с анимацией
+            # ИСПРАВЛЕНИЕ: передаем корутину, а не результат ее вызова
             loaded_message = await self.animate_loading_until_done(
                 event, "Загрузка модуля", is_premium, load_module_task()
             )

@@ -137,7 +137,10 @@ class LoaderModule:
                     return module.get_module_info()
                 
                 # Если функции get_module_info нет, пытаемся получить информацию из переменных модуля
-                developer = getattr(module, 'developer', '@BotHuekka')
+                developer = getattr(module, 'developer', None)
+                if developer is None:
+                    developer = '@BotHuekka'
+                
                 version = getattr(module, 'version', '1.0.0')
                 description = getattr(module, 'description', self.bot.module_descriptions.get(module_name, ""))
                 

@@ -36,10 +36,6 @@ def get_module_info():
             {
                 "command": "ulm",
                 "description": "Выгрузить модуль по имени"
-            },
-            {
-                "command": "reload",
-                "description": "Перезагрузить все модули"
             }
         ]
     }
@@ -58,7 +54,6 @@ class LoaderModule:
         self.info_emoji_id = BotConfig.EMOJI_IDS.get("info", "5422439311196834318")
         self.error_emoji_id = BotConfig.EMOJI_IDS.get("error", "5240241223632954241")
         self.unload_emoji_id = "5251522431977291010"  # Специальный emoji для удаления
-        self.reload_emoji_id = "5251522431977291011"  # Специальный emoji для перезагрузки
         
         self.min_animation_time = BotConfig.LOADER.get("min_animation_time", 1.0)
         self.delete_delay = BotConfig.LOADER.get("delete_delay", 5.0)
@@ -80,13 +75,6 @@ class LoaderModule:
                 bot.register_command(
                     cmd=cmd_info["command"],
                     handler=self.unload_module,
-                    description=cmd_info["description"],
-                    module_name=MODULE_INFO["name"]
-                )
-            elif cmd_info["command"] == "reload":
-                bot.register_command(
-                    cmd=cmd_info["command"],
-                    handler=self.reload_all_modules,
                     description=cmd_info["description"],
                     module_name=MODULE_INFO["name"]
                 )
@@ -414,77 +402,6 @@ class LoaderModule:
             await event.edit(error_msg)
             logger.error(f"Ошибка выгрузки модуля {found_module}: {str(e)}")
 
-    async def reload_all_modules(self, event):
-        """Перезагружает все модули динамически"""
-        user_info = await self.get_user_info(event)
-        is_premium = user_info["premium"]
-        
-        try:
-            # Сохраняем информацию о текущих модулях
-            current_modules = {}
-            for module_name, module_data in self.bot.modules.items():
-                if module_name in self.bot.module_files:
-                    current_modules[module_name] = self.bot.module_files[module_name]
-            
-            # Выгружаем все модули
-            for module_name in list(self.bot.modules.keys()):
-                if module_name != "Loader":  # Не выгружаем сам Loader
-                    await self.unload_existing_module(module_name)
-            
-            # Очищаем команды и описания модулей
-            self.bot.commands.clear()
-            self.bot.modules.clear()
-            self.bot.module_descriptions.clear()
-            
-            # Перезагружаем core модули
-            core_modules_dir = "core"
-            for file in os.listdir(core_modules_dir):
-                if file.endswith(".py") and file != "__init__.py":
-                    module_name = file[:-3]
-                    if module_name != "Loader":  # Уже загружен
-                        continue
-                    
-                    try:
-                        module_path = os.path.join(core_modules_dir, file)
-                        spec = importlib.util.spec_from_file_location(module_name, module_path)
-                        module = importlib.util.module_from_spec(spec)
-                        sys.modules[module_name] = module
-                        spec.loader.exec_module(module)
-                        
-                        if hasattr(module, 'setup'):
-                            module.setup(self.bot)
-                            logger.info(f"Core-модуль {module_name} перезагружен")
-                    except Exception as e:
-                        logger.error(f"Ошибка перезагрузки core-модуля {file}: {str(e)}")
-            
-            # Загружаем пользовательские модули
-            modules_dir = "modules"
-            for module_name, module_path in current_modules.items():
-                try:
-                    spec = importlib.util.spec_from_file_location(module_name, module_path)
-                    module = importlib.util.module_from_spec(spec)
-                    sys.modules[module_name] = module
-                    spec.loader.exec_module(module)
-                    
-                    if hasattr(module, 'setup'):
-                        module.setup(self.bot)
-                        logger.info(f"Модуль {module_name} перезагружен")
-                except Exception as e:
-                    logger.error(f"Ошибка перезагрузки модуля {module_name}: {str(e)}")
-            
-            # Форматируем сообщение об успешной перезагрузке
-            if is_premium:
-                success_msg = f"[🔄](emoji/{self.reload_emoji_id}) Все модули успешно перезагружены!"
-            else:
-                success_msg = "🔄 Все модули успешно перезагружены!"
-                
-            await event.edit(success_msg)
-            
-        except Exception as e:
-            error_msg = f"❌ Ошибка при перезагрузке модулей: {str(e)}"
-            await event.edit(error_msg)
-            logger.error(f"Ошибка перезагрузки модулей: {str(e)}")
-
     async def load_module(self, event):
         if not event.is_reply:
             await event.edit(f"[ℹ️](emoji/{self.info_emoji_id}) **Ответьте на сообщение с файлом модуля!**")
@@ -597,13 +514,10 @@ class LoaderModule:
                 )
                 
                 logger.info(f"Модуль {module_name} загружен (команд: {len(new_commands)})")
-                
-                # Перезагружаем все модули после успешной загрузки нового модуля
-                await self.reload_all_modules(event)
-                
                 return loaded_message
             
             # Запускаем загрузку модуля с анимацией
+            # ИСПРАВЛЕНИЕ: передаем корутину, а не результат ее вызова
             loaded_message = await self.animate_loading_until_done(
                 event, "Загрузка модуля", is_premium, load_module_task()
             )

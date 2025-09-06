@@ -492,6 +492,10 @@ class LoaderModule:
                         "developer": "@BotHuekka"
                     }
                 
+                # ВАЖНОЕ ИСПРАВЛЕНИЕ: Удаляем старую запись в БД перед созданием новой
+                # Это предотвращает накопление устаревших записей при обновлении модулей
+                self.bot.db.delete_module_info(module_name)
+                
                 # Сохраняем информацию о модуле в базу данных
                 self.bot.db.set_module_info(
                     module_info['name'],
@@ -509,7 +513,6 @@ class LoaderModule:
                     self.bot.command_prefix
                 )
                 
-                # ИСПРАВЛЕНИЕ: заменяем found_module на module_name
                 logger.info(f"Модуль {module_name} загружен (команд: {len(new_commands)})")
                 return loaded_message
             
@@ -538,7 +541,7 @@ class LoaderModule:
                 except:
                     pass
             
-            # Создаем сообщение об ошибке напрямю
+            # Создаем сообщение об ошибке напрямую
             error_msg = f"[❌](emoji/{self.error_emoji_id}) **Ошибка загрузки модуля:** {str(e)}"
             await event.edit(error_msg)
         finally:

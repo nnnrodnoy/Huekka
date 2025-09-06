@@ -123,14 +123,14 @@ class MessageFormatters:
         """Форматирование подсказки"""
         return f"[💡](emoji/5422439311196834318) **Подсказка:** {message}"
 
-class HelpFormatters:
-    """Форматирование для help модуля"""
+class ModuleInfoFormatters:
+    """Универсальные форматеры информации о модулях"""
     
     @staticmethod
-    def format_module_info(module_info, is_premium, total_emoji_id, random_smile, 
-                          stock_emoji_id, custom_emoji_id, command_emoji_id, 
+    def format_module_info(module_info, is_premium, total_emoji_id, random_smile,
+                          stock_emoji_id, custom_emoji_id, command_emoji_id,
                           developer_emoji_id, prefix):
-        """Форматирование информации о модуле (как в help.py)"""
+        """Форматирование информации о модуле (универсальный)"""
         text = ""
         if is_premium:
             text += f"[🕒](emoji/{total_emoji_id}) "
@@ -140,12 +140,12 @@ class HelpFormatters:
                               
         for cmd in module_info['commands']:
             if is_premium:
-                if module_info['is_stock']:
+                if module_info.get('is_stock', False):
                     text += f"[▪️](emoji/{stock_emoji_id}) "
                 else:
                     text += f"[▫️](emoji/{custom_emoji_id}) "
             else:
-                text += "▪️ " if module_info['is_stock'] else "▫️ "
+                text += "▪️ " if module_info.get('is_stock', False) else "▫️ "
             
             text += f"`{prefix}{cmd['command']}` - __{cmd['description']}__\n"
         
@@ -156,6 +156,65 @@ class HelpFormatters:
         text += f"**Разработчик:** {module_info['developer']}"
         
         return text
+
+    @staticmethod
+    def format_loaded_message(module_info, is_premium, loaded_emoji_id, random_smile,
+                             command_emoji_id, dev_emoji_id, prefix):
+        """Форматирование сообщения о загруженном модуле (универсальный)"""
+        text = ""
+        if is_premium:
+            text += f"[🌘](emoji/{loaded_emoji_id}) "
+        text += f"**{module_info['name']} загружен (v{module_info['version']})**\n"
+        
+        if module_info['description']:
+            text += f"__{module_info['description']}__\n"
+            
+        text += f"**__{random_smile}**__\n\n"
+        
+        for cmd in module_info['commands']:
+            if is_premium:
+                text += f"[▫️](emoji/{command_emoji_id}) "
+            else:
+                text += "▫️ "
+                
+            text += f"`{prefix}{cmd['command']}` - __{cmd['description']}__\n"
+        
+        text += "\n"
+        if is_premium:
+            text += f"[🫶](emoji/{dev_emoji_id}) "
+        else:
+            text += "🫶 "
+        text += f"**Разработчик:** {module_info['developer']}"
+        
+        return text
+
+    @staticmethod
+    def format_unloaded_message(module_name, is_premium, info_emoji_id, prefix):
+        """Форматирование сообщения об удалении модуля (универсальный)"""
+        text = ""
+        if is_premium:
+            text += f"[▪️](emoji/{info_emoji_id})"
+        else:
+            text += "▪️"
+        
+        text += f"**Модуль {module_name} успешно удален.**\n"
+        text += f"__(Используйте `{prefix}help` для просмотра модулей и команд.)__"
+        
+        return text
+
+class HelpFormatters:
+    """Форматирование для help модуля"""
+    
+    @staticmethod
+    def format_module_info(module_info, is_premium, total_emoji_id, random_smile, 
+                          stock_emoji_id, custom_emoji_id, command_emoji_id, 
+                          developer_emoji_id, prefix):
+        """Форматирование информации о модуле (как в help.py)"""
+        return ModuleInfoFormatters.format_module_info(
+            module_info, is_premium, total_emoji_id, random_smile,
+            stock_emoji_id, custom_emoji_id, command_emoji_id,
+            developer_emoji_id, prefix
+        )
 
     @staticmethod
     def format_main_help(total_modules, is_premium, total_emoji_id, section_emoji_id,
@@ -188,49 +247,21 @@ class LoaderFormatters:
     def format_loaded_message(module_info, is_premium, loaded_emoji_id, random_smile,
                              command_emoji_id, dev_emoji_id, prefix):
         """Форматирование сообщения о загруженном модуле (как в loader.py)"""
-        text = ""
-        if is_premium:
-            text += f"[🌘](emoji/{loaded_emoji_id}) "
-        text += f"**{module_info['name']} загружен (v{module_info['version']})**\n"
-        
-        if module_info['description']:
-            text += f"__{module_info['description']}__\n"
-            
-        text += f"**__{random_smile}**__\n\n"
-        
-        for cmd in module_info['commands']:
-            if is_premium:
-                text += f"[▫️](emoji/{command_emoji_id}) "
-            else:
-                text += "▫️ "
-                
-            text += f"`{prefix}{cmd['command']}` - __{cmd['description']}__\n"
-        
-        text += "\n"
-        if is_premium:
-            text += f"[🫶](emoji/{dev_emoji_id}) "
-        else:
-            text += "🫶 "
-        text += f"**Разработчик:** {module_info['developer']}"
-        
-        return text
+        return ModuleInfoFormatters.format_loaded_message(
+            module_info, is_premium, loaded_emoji_id, random_smile,
+            command_emoji_id, dev_emoji_id, prefix
+        )
 
     @staticmethod
     def format_unloaded_message(module_name, is_premium, info_emoji_id, prefix):
         """Форматирование сообщения об удалении модуля (как в loader.py)"""
-        text = ""
-        if is_premium:
-            text += f"[▪️](emoji/{info_emoji_id})"
-        else:
-            text += "▪️"
-        
-        text += f"**Модуль {module_name} успешно удален.**\n"
-        text += f"__(Используйте `{prefix}help` для просмотра модулей и команд.)__"
-        
-        return text
+        return ModuleInfoFormatters.format_unloaded_message(
+            module_name, is_premium, info_emoji_id, prefix
+        )
 
 # Создаем экземпляры для удобного импорта
 text = TextFormatters()
 msg = MessageFormatters()
 help_format = HelpFormatters()
 loader_format = LoaderFormatters()
+module_info_format = ModuleInfoFormatters()

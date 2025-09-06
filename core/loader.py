@@ -17,6 +17,7 @@ import traceback
 import time
 import random
 import re
+import inspect
 from config import BotConfig
 from core.formatters import loader_format
 
@@ -114,14 +115,6 @@ class LoaderModule:
                 if name.lower() == closest[0]:
                     return name
         
-        return None
-
-    async def find_module_file(self, module_name):
-        """Находит файл модуля по имени"""
-        modules_dir = Path("modules")
-        for file in modules_dir.iterdir():
-            if file.suffix == '.py' and file.stem == module_name:
-                return file
         return None
 
     async def extract_module_name_from_file(self, file_path):
@@ -274,8 +267,8 @@ class LoaderModule:
                 await self.unload_existing_module(existing_module)
                 
                 # Удаляем старый файл
-                old_file = await self.find_module_file(existing_module)
-                if old_file and old_file.exists():
+                old_file = Path("modules") / f"{existing_module}.py"
+                if old_file.exists():
                     os.remove(old_file)
                     logger.info(f"Старый файл модуля {existing_module} удален")
                 
@@ -343,17 +336,13 @@ class LoaderModule:
             return
 
         try:
-            # Находим файл модуля
-            module_file = await self.find_module_file(found_module)
-            if not module_file or not module_file.exists():
-                await event.edit(f"❌ Файл модуля `{found_module}` не найден.")
-                return
-
             # Выгружаем модуль из памяти
             await self.unload_existing_module(found_module)
             
             # Удаляем файл модуля
-            os.remove(module_file)
+            module_file = Path("modules") / f"{found_module}.py"
+            if module_file.exists():
+                os.remove(module_file)
             
             # Удаляем информацию из БД
             self.bot.db.delete_module_info(found_module)

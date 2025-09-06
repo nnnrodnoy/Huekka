@@ -27,6 +27,7 @@ class DatabaseManager:
         self.init_smiles_db()
         self.init_autoclean_db()
         self.init_modules_db()
+        self.init_module_info_db()  # Новая таблица для информации о модулях
     
     def get_db_path(self, db_name: str) -> str:
         """Получение полного пути к файлу базы данных"""
@@ -120,6 +121,93 @@ class DatabaseManager:
                 (key, value),
                 commit=True
             )
+    
+    def init_module_info_db(self):
+        """Инициализация базы данных информации о модулях"""
+        db_name = "module_info.db"
+        
+        query = '''CREATE TABLE IF NOT EXISTS module_info (
+            name TEXT PRIMARY KEY,
+            developer TEXT NOT NULL DEFAULT '@BotHuekka',
+            version TEXT NOT NULL DEFAULT '1.0.0',
+            description TEXT,
+            commands TEXT NOT NULL DEFAULT '[]',
+            is_stock INTEGER DEFAULT 0,
+            last_updated INTEGER DEFAULT (strftime('%s', 'now'))
+        )'''
+        
+        self.execute_query(db_name, query, commit=True)
+    
+    def set_module_info(self, name, developer, version, description, commands, is_stock=False):
+        """Установка информации о модуле"""
+        try:
+            self.execute_query(
+                "module_info.db",
+                """INSERT OR REPLACE INTO module_info 
+                   (name, developer, version, description, commands, is_stock) 
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (name, developer, version, description, json.dumps(commands), int(is_stock)),
+                commit=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Ошибка сохранения информации о модуле {name}: {str(e)}")
+            return False
+    
+    def get_module_info(self, name):
+        """Получение информации о модуле"""
+        result = self.execute_query(
+            "module_info.db",
+            "SELECT * FROM module_info WHERE name = ?",
+            (name,),
+            fetchone=True
+        )
+        
+        if result:
+            return {
+                'name': result['name'],
+                'developer': result['developer'],
+                'version': result['version'],
+                'description': result['description'],
+                'commands': json.loads(result['commands']),
+                'is_stock': bool(result['is_stock'])
+            }
+        return None
+    
+    def delete_module_info(self, name):
+        """Удаление информации о модуле"""
+        try:
+            self.execute_query(
+                "module_info.db",
+                "DELETE FROM module_info WHERE name = ?",
+                (name,),
+                commit=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Ошибка удаления информации о модуле {name}: {str(e)}")
+            return False
+    
+    def get_all_module_info(self):
+        """Получение информации обо всех модулях"""
+        results = self.execute_query(
+            "module_info.db",
+            "SELECT * FROM module_info",
+            fetchall=True
+        )
+        
+        modules = []
+        for result in results:
+            modules.append({
+                'name': result['name'],
+                'developer': result['developer'],
+                'version': result['version'],
+                'description': result['description'],
+                'commands': json.loads(result['commands']),
+                'is_stock': bool(result['is_stock'])
+            })
+        
+        return modules
     
     def get_config_value(self, key: str, default: Any = None) -> Any:
         """Получение значения из глобальной конфигурации"""

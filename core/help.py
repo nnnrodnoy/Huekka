@@ -51,6 +51,12 @@ class HelpModule:
         return self.bot.db.get_random_smile()
 
     async def get_module_info(self, module_name):
+        # Сначала пытаемся получить информацию из базы данных
+        db_info = self.bot.db.get_module_info(module_name)
+        if db_info:
+            return db_info
+            
+        # Fallback: если информации в БД нет, используем старую логику
         if module_name not in self.bot.modules:
             return None
             
@@ -61,10 +67,15 @@ class HelpModule:
                 if hasattr(module, 'get_module_info'):
                     info = module.get_module_info()
                     
-                    db_info = self.bot.db.get_module_settings(module_name)
-                    if db_info and "load_count" in db_info:
-                        info["load_count"] = db_info.get("load_count", 0)
-                        info["last_loaded"] = db_info.get("last_loaded", 0)
+                    # Сохраняем в базу данных для будущего использования
+                    self.bot.db.set_module_info(
+                        info['name'],
+                        info['developer'],
+                        info['version'],
+                        info['description'],
+                        info['commands'],
+                        module_name in self.stock_modules
+                    )
                     
                     return info
                 
@@ -83,9 +94,15 @@ class HelpModule:
                         "description": data.get("description", "Без описания")
                     })
                 
-                db_info = self.bot.db.get_module_settings(module_name)
-                load_count = db_info.get("load_count", 1) if db_info else 1
-                last_loaded = db_info.get("last_loaded", 0) if db_info else 0
+                # Сохраняем в базу данных для будущего использования
+                self.bot.db.set_module_info(
+                    module_name,
+                    developer,
+                    version,
+                    description,
+                    commands,
+                    module_name in self.stock_modules
+                )
                 
                 return {
                     "name": module_name,
@@ -93,9 +110,7 @@ class HelpModule:
                     "commands": commands,
                     "is_stock": module_name in self.stock_modules,
                     "version": version,
-                    "developer": developer,
-                    "load_count": load_count,
-                    "last_loaded": last_loaded
+                    "developer": developer
                 }
         except Exception:
             pass
@@ -108,9 +123,15 @@ class HelpModule:
                 "description": data.get("description", "Без описания")
             })
         
-        db_info = self.bot.db.get_module_settings(module_name)
-        load_count = db_info.get("load_count", 1) if db_info else 1
-        last_loaded = db_info.get("last_loaded", 0) if db_info else 0
+        # Сохраняем в базу данных для будущего использования
+        self.bot.db.set_module_info(
+            module_name,
+            "@BotHuekka",
+            "1.0.0",
+            self.bot.module_descriptions.get(module_name, ""),
+            commands,
+            module_name in self.stock_modules
+        )
         
         return {
             "name": module_name,
@@ -118,9 +139,7 @@ class HelpModule:
             "commands": commands,
             "is_stock": module_name in self.stock_modules,
             "version": "1.0.0",
-            "developer": "@BotHuekka",
-            "load_count": load_count,
-            "last_loaded": last_loaded
+            "developer": "@BotHuekka"
         }
 
     async def get_command_info(self, command_name):
@@ -219,37 +238,38 @@ class HelpModule:
 
         total_modules = len(self.bot.modules)
         
+        # Получаем информацию о всех модулях из базы данных
+        all_module_info = self.bot.db.get_all_module_info()
+        
         stock_list = []
-        for module_name in self.stock_modules:
-            if module_name not in self.bot.modules:
+        for module_info in all_module_info:
+            if module_info['name'] not in self.stock_modules:
                 continue
                 
-            module_info = await self.get_module_info(module_name)
-            if not module_info:
+            if module_info['name'] not in self.bot.modules:
                 continue
                 
             commands_list = [f'`{prefix}{cmd["command"]}`' for cmd in module_info['commands']]
             
             if is_premium:
-                stock_list.append(f"[▪️](emoji/{self.stock_emoji_id}) **{module_name}**: ( {' | '.join(commands_list)} )")
+                stock_list.append(f"[▪️](emoji/{self.stock_emoji_id}) **{module_info['name']}**: ( {' | '.join(commands_list)} )")
             else:
-                stock_list.append(f"▪️ **{module_name}**: ( {' | '.join(commands_list)} )")
+                stock_list.append(f"▪️ **{module_info['name']}**: ( {' | '.join(commands_list)} )")
         
         custom_list = []
-        for module_name in self.bot.modules.keys():
-            if module_name in self.stock_modules:
+        for module_info in all_module_info:
+            if module_info['name'] in self.stock_modules:
                 continue
                 
-            module_info = await self.get_module_info(module_name)
-            if not module_info:
+            if module_info['name'] not in self.bot.modules:
                 continue
                 
             commands_list = [f'`{prefix}{cmd["command"]}`' for cmd in module_info['commands']]
             
             if is_premium:
-                custom_list.append(f"[▫️](emoji/{self.custom_emoji_id}) **{module_name}**: ( {' | '.join(commands_list)} )")
+                custom_list.append(f"[▫️](emoji/{self.custom_emoji_id}) **{module_info['name']}**: ( {' | '.join(commands_list)} )")
             else:
-                custom_list.append(f"▫️ **{module_name}**: ( {' | '.join(commands_list)} )")
+                custom_list.append(f"▫️ **{module_info['name']}**: ( {' | '.join(commands_list)} )")
         
         reply = help_format.format_main_help(
             total_modules, is_premium, self.total_emoji_id, self.section_emoji_id,

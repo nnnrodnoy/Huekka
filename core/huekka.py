@@ -20,7 +20,7 @@ def get_module_info():
     return {
         "name": "Huekka",
         "description": "Информация о боте Huekka и работа с эмодзи",
-        "developer": "@BotHuekka",
+        "developer": "@B1111otHuekka",
         "version": "1.0.0",
         "commands": [
             {

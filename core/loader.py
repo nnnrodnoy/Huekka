@@ -486,7 +486,8 @@ class LoaderModule:
                     self.bot.command_prefix
                 )
                 
-                logger.info(f"Модуль {found_module} загружен (команд: {len(new_commands)})")
+                # ИСПРАВЛЕНИЕ: заменяем found_module на module_name
+                logger.info(f"Модуль {module_name} загружен (команд: {len(new_commands)})")
                 return loaded_message
             
             # Запускаем загрузку модуля с анимацией

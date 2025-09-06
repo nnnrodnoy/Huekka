@@ -22,6 +22,26 @@ from core.formatters import loader_format
 
 logger = logging.getLogger("UserBot.Loader")
 
+def get_module_info():
+    return {
+        "name": "Loader",
+        "description": "Динамическая загрузка и выгрузка модулей",
+        "developer": "@BotHuekka",
+        "version": "1.0.0",
+        "commands": [
+            {
+                "command": "lm",
+                "description": "Загрузить модуль из файла"
+            },
+            {
+                "command": "ulm",
+                "description": "Выгрузить модуль по имени"
+            }
+        ]
+    }
+
+MODULE_INFO = get_module_info()
+
 class LoaderModule:
     def __init__(self, bot):
         self.bot = bot
@@ -42,21 +62,24 @@ class LoaderModule:
         if not hasattr(bot, 'module_files'):
             bot.module_files = {}
         
-        bot.register_command(
-            cmd="lm",
-            handler=self.load_module,
-            description="Загрузить модуль из файла",
-            module_name="Loader"
-        )
+        # Регистрация команд из MODULE_INFO
+        for cmd_info in MODULE_INFO["commands"]:
+            if cmd_info["command"] == "lm":
+                bot.register_command(
+                    cmd=cmd_info["command"],
+                    handler=self.load_module,
+                    description=cmd_info["description"],
+                    module_name=MODULE_INFO["name"]
+                )
+            elif cmd_info["command"] == "ulm":
+                bot.register_command(
+                    cmd=cmd_info["command"],
+                    handler=self.unload_module,
+                    description=cmd_info["description"],
+                    module_name=MODULE_INFO["name"]
+                )
         
-        bot.register_command(
-            cmd="ulm",
-            handler=self.unload_module,
-            description="Выгрузить модуль по имени",
-            module_name="Loader"
-        )
-        
-        bot.set_module_description("Loader", "Динамическая загрузка и выгрузка модулей")
+        bot.set_module_description(MODULE_INFO["name"], MODULE_INFO["description"])
 
     def get_random_smile(self):
         """Возвращает случайный смайл из конфигурации"""
@@ -515,7 +538,7 @@ class LoaderModule:
                 except:
                     pass
             
-            # Создаем сообщение об ошибке напрямую
+            # Создаем сообщение об ошибке напрямю
             error_msg = f"[❌](emoji/{self.error_emoji_id}) **Ошибка загрузки модуля:** {str(e)}"
             await event.edit(error_msg)
         finally:
@@ -524,42 +547,6 @@ class LoaderModule:
                     os.remove(temp_file)
             except:
                 pass
-
-    def get_loader_info(self):
-        return {
-            "name": "Loader",
-            "description": "Динамическая загрузка и выгрузка модулей",
-            "developer": "@BotHuekka",
-            "version": "1.0.0",
-            "commands": [
-                {
-                    "command": "lm",
-                    "description": "Загрузить модуль из файла"
-                },
-                {
-                    "command": "ulm",
-                    "description": "Выгрузить модуль по имени"
-                }
-            ]
-        }
-
-def get_loader_info():
-    return {
-        "name": "Loader",
-        "description": "Динамическая загрузка и выгрузка модулей",
-        "developer": "@BotHuekka",
-        "version": "1.0.0",
-        "commands": [
-            {
-                "command": "lm",
-                "description": "Загрузить модуль из файла"
-            },
-            {
-                "command": "ulm",
-                "description": "Выгрузить модуль по имени"
-            }
-        ]
-    }
 
 def setup(bot):
     LoaderModule(bot)

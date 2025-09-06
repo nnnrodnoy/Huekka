@@ -126,6 +126,12 @@ class LoaderModule:
         return None, None
 
     async def get_module_info(self, module_name):
+        # Сначала пытаемся получить информацию из базы данных
+        db_info = self.bot.db.get_module_info(module_name)
+        if db_info:
+            return db_info
+            
+        # Fallback: если информации в БД нет, используем старую логику
         if module_name not in self.bot.modules:
             return None
             
@@ -134,7 +140,19 @@ class LoaderModule:
             if module:
                 # Пытаемся получить информацию через get_module_info
                 if hasattr(module, 'get_module_info'):
-                    return module.get_module_info()
+                    info = module.get_module_info()
+                    
+                    # Сохраняем в базу данных для будущего использования
+                    self.bot.db.set_module_info(
+                        info['name'],
+                        info['developer'],
+                        info['version'],
+                        info['description'],
+                        info['commands'],
+                        module_name in self.bot.core_modules
+                    )
+                    
+                    return info
                 
                 # Если функции get_module_info нет, пытаемся получить информацию из переменных модуля
                 developer = getattr(module, 'developer', None)
@@ -150,6 +168,16 @@ class LoaderModule:
                         "command": cmd,
                         "description": data.get("description", "Без описания")
                     })
+                
+                # Сохраняем в базу данных для будущего использования
+                self.bot.db.set_module_info(
+                    module_name,
+                    developer,
+                    version,
+                    description,
+                    commands,
+                    module_name in self.bot.core_modules
+                )
                 
                 return {
                     "name": module_name,
@@ -169,6 +197,16 @@ class LoaderModule:
                 "command": cmd,
                 "description": data.get("description", "Без описания")
             })
+        
+        # Сохраняем в базу данных для будущего использования
+        self.bot.db.set_module_info(
+            module_name,
+            "@BotHuekka",
+            "1.0.0",
+            self.bot.module_descriptions.get(module_name, ""),
+            commands,
+            module_name in self.bot.core_modules
+        )
         
         return {
             "name": module_name,
@@ -263,6 +301,9 @@ class LoaderModule:
             if module_name in self.bot.module_files:
                 del self.bot.module_files[module_name]
             
+            # Удаляем информацию о модуле из базы данных
+            self.bot.db.delete_module_info(module_name)
+            
             logger.info(f"Модуль {module_name} выгружен перед загрузкой новой версии")
 
     async def unload_module(self, event):
@@ -315,6 +356,9 @@ class LoaderModule:
                     os.remove(file_path)
                     file_removed = True
                 del self.bot.module_files[found_module]
+
+            # Удаляем информацию о модуле из базы данных
+            self.bot.db.delete_module_info(found_module)
 
             # Форматируем сообщение об успешном удалении
             user_info = await self.get_user_info(event)
@@ -374,7 +418,7 @@ class LoaderModule:
                 logger.warning(f"Не удалось установить зависимости для {module_name}")
                 return
             
-            # Проверяем, существует ли уже модуль с таким именем
+            # Проверяем, существует ли уже модуль с таким же именем
             final_path = Path("modules") / file_name
             if final_path.exists():
                 # Выгружаем существующий модуль
@@ -409,17 +453,11 @@ class LoaderModule:
                 after_commands = set(self.bot.commands.keys())
                 new_commands = after_commands - before_commands
                 
+                # Получаем информацию о модуле
                 found_name, module_info = await self.find_module_info(module_name)
                 
-                # Формируем сообщение о успешной загрузке
-                if module_info:
-                    loaded_message = loader_format.format_loaded_message(
-                        module_info, is_premium, self.loaded_emoji_id, 
-                        self.get_random_smile(), self.command_emoji_id, self.dev_emoji_id,
-                        self.bot.command_prefix
-                    )
-                    logger.info(f"Модуль {found_name} загружен (команд: {len(new_commands)})")
-                else:
+                # Если не удалось получить информацию через get_module_info, создаем базовую
+                if not module_info:
                     module_info = {
                         "name": module_name,
                         "description": "Описание недоступно",
@@ -430,12 +468,25 @@ class LoaderModule:
                         "version": "1.0.0",
                         "developer": "@BotHuekka"
                     }
-                    loaded_message = loader_format.format_loaded_message(
-                        module_info, is_premium, self.loaded_emoji_id, 
-                        self.get_random_smile(), self.command_emoji_id, self.dev_emoji_id,
-                        self.bot.command_prefix
-                    )
                 
+                # Сохраняем информацию о модуле в базу данных
+                self.bot.db.set_module_info(
+                    module_info['name'],
+                    module_info['developer'],
+                    module_info['version'],
+                    module_info['description'],
+                    module_info['commands'],
+                    False  # is_stock = False для загруженных модулей
+                )
+                
+                # Формируем сообщение о успешной загрузке
+                loaded_message = loader_format.format_loaded_message(
+                    module_info, is_premium, self.loaded_emoji_id, 
+                    self.get_random_smile(), self.command_emoji_id, self.dev_emoji_id,
+                    self.bot.command_prefix
+                )
+                
+                logger.info(f"Модуль {found_module} загружен (команд: {len(new_commands)})")
                 return loaded_message
             
             # Запускаем загрузку модуля с анимацией

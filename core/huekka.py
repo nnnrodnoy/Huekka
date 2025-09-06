@@ -16,6 +16,34 @@ from core.formatters import text, msg
 
 logger = logging.getLogger("UserBot.Huekka")
 
+def get_module_info():
+    return {
+        "name": "Huekka",
+        "description": "Информация о боте Huekka и работа с эмодзи",
+        "developer": "@BotHuekka",
+        "version": "1.0.0",
+        "commands": [
+            {
+                "command": "huekka",
+                "description": "Показать информацию о боте"
+            },
+            {
+                "command": "ping",
+                "description": "Показать пинг бота"
+            },
+            {
+                "command": "setamoji",
+                "description": "Получить маркеры для премиум-эмодзи"
+            },
+            {
+                "command": "online",
+                "description": "Показать время работы бота"
+            }
+        ]
+    }
+
+MODULE_INFO = get_module_info()
+
 class HuekkaModule:
     def __init__(self, bot):
         self.bot = bot
@@ -25,35 +53,38 @@ class HuekkaModule:
         self.image_path = base_dir / "asset" / "image" / "huekka.png"
         self.clock_emoji_id = BotConfig.EMOJI_IDS["clock"]
         
-        bot.register_command(
-            cmd="huekka",
-            handler=self.cmd_huekka,
-            description="Показать информацию о боте",
-            module_name="Huekka"
-        )
+        # Регистрируем все команды из MODULE_INFO
+        for cmd_info in MODULE_INFO["commands"]:
+            if cmd_info["command"] == "huekka":
+                bot.register_command(
+                    cmd=cmd_info["command"],
+                    handler=self.cmd_huekka,
+                    description=cmd_info["description"],
+                    module_name=MODULE_INFO["name"]
+                )
+            elif cmd_info["command"] == "ping":
+                bot.register_command(
+                    cmd=cmd_info["command"],
+                    handler=self.cmd_ping,
+                    description=cmd_info["description"],
+                    module_name=MODULE_INFO["name"]
+                )
+            elif cmd_info["command"] == "setamoji":
+                bot.register_command(
+                    cmd=cmd_info["command"],
+                    handler=self.cmd_setamoji,
+                    description=cmd_info["description"],
+                    module_name=MODULE_INFO["name"]
+                )
+            elif cmd_info["command"] == "online":
+                bot.register_command(
+                    cmd=cmd_info["command"],
+                    handler=self.cmd_online,
+                    description=cmd_info["description"],
+                    module_name=MODULE_INFO["name"]
+                )
         
-        bot.register_command(
-            cmd="ping",
-            handler=self.cmd_ping,
-            description="Показать пинг бота",
-            module_name="Huekka"
-        )
-        
-        bot.register_command(
-            cmd="setamoji",
-            handler=self.cmd_setamoji,
-            description="Получить маркеры для премиум-эмодзи",
-            module_name="Huekka"
-        )
-        
-        bot.register_command(
-            cmd="online",
-            handler=self.cmd_online,
-            description="Показать время работы бота",
-            module_name="Huekka"
-        )
-        
-        bot.set_module_description("Huekka", "Информация о боте Huekka и работа с эмодзи")
+        bot.set_module_description(MODULE_INFO["name"], MODULE_INFO["description"])
         
         logger.info(f"Путь к изображению: {self.image_path}")
         logger.info(f"Изображение существует: {self.image_path.exists()}")
@@ -156,58 +187,6 @@ class HuekkaModule:
             pass
         except Exception as e:
             logger.error(f"Ошибка в команде .online: {str(e)}")
-
-    def get_module_info(self):
-        return {
-            "name": "Huekka",
-            "description": "Информация о боте Huekka и работа с эмодзи",
-            "developer": "@BotHuekka",
-            "version": "1.0.0",
-            "commands": [
-                {
-                    "command": "huekka",
-                    "description": "Показать информацию о боте"
-                },
-                {
-                    "command": "ping",
-                    "description": "Показать пинг бота"
-                },
-                {
-                    "command": "setamoji",
-                    "description": "Получить id premium-amoji"
-                },
-                {
-                    "command": "online",
-                    "description": "Показать время работы бота"
-                }
-            ]
-        }
-
-def get_module_info():
-    return {
-        "name": "Huekka",
-        "description": "Huekka tools module ",
-        "developer": "@BotHuekka",
-        "version": "1.0.0",
-        "commands": [
-            {
-                "command": "huekka",
-                "description": "Показать информацию о боте"
-            },
-            {
-                "command": "ping",
-                "description": "Показать пинг бота"
-            },
-            {
-                "command": "setamoji",
-                "description": "Получить id premium-amoji"
-            },
-            {
-                "command": "online",
-                "description": "Показать время работы бота"
-            }
-        ]
-    }
 
 def setup(bot):
     HuekkaModule(bot)

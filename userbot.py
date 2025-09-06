@@ -251,6 +251,18 @@ class UserBot:
                         after = len(self.commands)
                         
                         logger.debug(f"Core-модуль {module_name} загружен (команд: {after - before})")
+                        
+                        # Сохраняем информацию о core-модуле в базу данных
+                        if hasattr(module, 'get_module_info'):
+                            module_info = module.get_module_info()
+                            self.db.set_module_info(
+                                module_info['name'],
+                                module_info['developer'],
+                                module_info['version'],
+                                module_info['description'],
+                                module_info['commands'],
+                                True  # is_stock = True для core-модулей
+                            )
                 except Exception as e:
                     error_msg = f"Ошибка загрузки core-модуля {file}: {str(e)}"
                     logger.error(error_msg)
@@ -285,6 +297,18 @@ class UserBot:
                         after = len(self.commands)
                         
                         logger.debug(f"Модуль {module_name} загружен (команд: {after - before})")
+                        
+                        # Сохраняем информацию о пользовательском модуле в базу данных
+                        if hasattr(module, 'get_module_info'):
+                            module_info = module.get_module_info()
+                            self.db.set_module_info(
+                                module_info['name'],
+                                module_info['developer'],
+                                module_info['version'],
+                                module_info['description'],
+                                module_info['commands'],
+                                False  # is_stock = False для пользовательских модулей
+                            )
                 except Exception as e:
                     error_msg = f"Ошибка загрузки модуля {file}: {str(e)}"
                     logger.error(error_msg)

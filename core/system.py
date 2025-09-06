@@ -19,6 +19,22 @@ from core.formatters import text, msg
 
 logger = logging.getLogger("UserBot.System")
 
+def get_module_info():
+    return {
+        "name": "System",
+        "description": "Системные команды бота",
+        "developer": "@BotHuekka",
+        "version": "1.0.0",
+        "commands": [
+            {
+                "command": "restart",
+                "description": "Перезагрузить бота"
+            }
+        ]
+    }
+
+MODULE_INFO = get_module_info()
+
 class SystemModule:
     def __init__(self, bot):
         self.bot = bot
@@ -28,14 +44,15 @@ class SystemModule:
         
         self.restart_file = Path("cash") / "restart_info.json"
         
+        # Регистрируем команду из MODULE_INFO
         bot.register_command(
-            cmd="restart",
+            cmd=MODULE_INFO["commands"][0]["command"],
             handler=self.cmd_restart,
-            description="Перезагрузить бота",
-            module_name="System"
+            description=MODULE_INFO["commands"][0]["description"],
+            module_name=MODULE_INFO["name"]
         )
         
-        bot.set_module_description("System", "Системные команды бота")
+        bot.set_module_description(MODULE_INFO["name"], MODULE_INFO["description"])
         
         if self.restart_file.exists():
             try:
@@ -126,34 +143,6 @@ class SystemModule:
                     self.restart_file.unlink()
             except:
                 pass
-        
-    def get_module_info(self):
-        return {
-            "name": "System",
-            "description": "Системные команды бота",
-            "developer": "@BotHuekka",
-            "version": "1.0.0",
-            "commands": [
-                {
-                    "command": "restart",
-                    "description": "Перезагрузить бота"
-                }
-            ]
-        }
-
-def get_module_info():
-    return {
-        "name": "System",
-        "description": "Системные команды бота",
-        "developer": "@BotHuekka",
-        "version": "1.0.0",
-        "commands": [
-            {
-                "command": "restart",
-                "description": "Перезагрузить бота"
-            }
-        ]
-    }
 
 def setup(bot):
     SystemModule(bot)

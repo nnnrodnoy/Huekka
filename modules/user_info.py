@@ -15,18 +15,34 @@ from core.formatters import text, msg
 
 logger = logging.getLogger("UserBot.UserInfo")
 
+def get_module_info():
+    return {
+        "name": "UserInfo",
+        "description": "Получение информации о пользователях, чатах и каналах",
+        "developer": "BotHuekka",
+        "version": "2.1.0",
+        "commands": [
+            {
+                "command": "userinfo",
+                "description": "Получить информацию о пользователе, чате или канале"
+            }
+        ]
+    }
+
+MODULE_INFO = get_module_info()
+
 class UserInfoModule:
     def __init__(self, bot):
         self.bot = bot
         
         bot.register_command(
-            cmd="userinfo",
+            cmd=MODULE_INFO["commands"][0]["command"],
             handler=self.cmd_userinfo,
-            description="Получить информацию о пользователе, чате или канале",
-            module_name="UserInfo"
+            description=MODULE_INFO["commands"][0]["description"],
+            module_name=MODULE_INFO["name"]
         )
         
-        bot.set_module_description("UserInfo", "Получение информации о пользователях, чатах и каналах")
+        bot.set_module_description(MODULE_INFO["name"], MODULE_INFO["description"])
 
     async def add_to_autoclean(self, message):
         try:
@@ -237,34 +253,6 @@ class UserInfoModule:
         except Exception as e:
             logger.error(f"Ошибка в команде .userinfo: {str(e)}")
             await event.edit(f"Ошибка: {str(e)}")
-
-    def get_module_info(self):
-        return {
-            "name": "UserInfo",
-            "description": "Получение информации о пользователях, чатах и каналах",
-            "developer": "@CyberDev42",
-            "version": "2.1.0",
-            "commands": [
-                {
-                    "command": "userinfo",
-                    "description": "Получить информацию о пользователе, чате или канале"
-                }
-            ]
-        }
-
-def get_module_info():
-    return {
-        "name": "UserInfo",
-        "description": "Получение информации о пользователях, чатах и каналах",
-        "developer": "@CyberDev42",
-        "version": "2.1.0",
-        "commands": [
-            {
-                "command": "userinfo",
-                "description": "Получить информацию о пользователе, чате или канале"
-            }
-        ]
-    }
 
 def setup(bot):
     UserInfoModule(bot)

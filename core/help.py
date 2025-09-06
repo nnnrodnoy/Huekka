@@ -14,6 +14,22 @@ from core.formatters import help_format, msg
 
 logger = logging.getLogger("UserBot.Help")
 
+def get_module_info():
+    return {
+        "name": "Help",
+        "description": "Система помощи и информации о модулях",
+        "developer": "@BotHuekka",
+        "version": "1.0.0",
+        "commands": [
+            {
+                "command": "help",
+                "description": "Показать список команд"
+            }
+        ]
+    }
+
+MODULE_INFO = get_module_info()
+
 class HelpModule:
     def __init__(self, bot):
         self.bot = bot
@@ -27,25 +43,11 @@ class HelpModule:
         self.command_emoji_id = BotConfig.EMOJI_IDS["command"]
         
         bot.register_command(
-            cmd="help",
+            cmd=MODULE_INFO["commands"][0]["command"],
             handler=self.show_help,
-            description="Показать список команд",
-            module_name="Help"
+            description=MODULE_INFO["commands"][0]["description"],
+            module_name=MODULE_INFO["name"]
         )
-    
-    def get_module_info(self):
-        return {
-            "name": "Help",
-            "description": "Система помощи и информации о модулях",
-            "developer": "@BotHuekka",
-            "version": "1.0.0",
-            "commands": [
-                {
-                    "command": "help",
-                    "description": "Показать список команд"
-                }
-            ]
-        }
     
     def get_random_smile(self):
         return self.bot.db.get_random_smile()
@@ -278,20 +280,6 @@ class HelpModule:
         
         await event.edit(reply)
 
-def get_module_info():
-    return {
-        "name": "Help",
-        "description": "Система помощи и информации о модулях",
-        "developer": "@BotHuekka",
-        "version": "1.0.0",
-        "commands": [
-            {
-                "command": "help",
-                "description": "Показать список команд"
-            }
-        ]
-    }
-
 def setup(bot):
-    bot.set_module_description("Help", "Система помощи и информации о модулях")
+    bot.set_module_description(MODULE_INFO["name"], MODULE_INFO["description"])
     HelpModule(bot)

@@ -17,68 +17,43 @@ import traceback
 import time
 import random
 import re
-import inspect
 from config import BotConfig
-from core.formatters import loader_format
+from core.formatters import loader_format, msg
 
 logger = logging.getLogger("UserBot.Loader")
-
-def get_module_info():
-    return {
-        "name": "Loader",
-        "description": "Динамическая загрузка и выгрузка модулей",
-        "developer": "@BotHuekka",
-        "version": "1.0.0",
-        "commands": [
-            {
-                "command": "lm",
-                "description": "Загрузить модуль из файла"
-            },
-            {
-                "command": "ulm",
-                "description": "Выгрузить модуль по имени"
-            }
-        ]
-    }
-
-MODULE_INFO = get_module_info()
 
 class LoaderModule:
     def __init__(self, bot):
         self.bot = bot
         
-        # Безопасное получение emoji ID с значениями по умолчанию
-        self.loader_emoji_id = BotConfig.EMOJI_IDS.get("loader", "5370932688993656500")
-        self.loaded_emoji_id = BotConfig.EMOJI_IDS.get("loaded", "5370932688993656500")
-        self.command_emoji_id = BotConfig.EMOJI_IDS.get("command", "5370932688993656500")
-        self.dev_emoji_id = BotConfig.EMOJI_IDS.get("dev", "5370932688993656500")
-        self.info_emoji_id = BotConfig.EMOJI_IDS.get("info", "5422439311196834318")
-        self.error_emoji_id = BotConfig.EMOJI_IDS.get("error", "5240241223632954241")
-        self.unload_emoji_id = "5251522431977291010"
+        # Новые emoji ID
+        self.loader_emoji_id = "5980787993139481991"  # Часики
+        self.loaded_emoji_id = "5370932688993656500"  # Луна
+        self.command_emoji_id = "5370932688993656500"  # Команда
+        self.dev_emoji_id = "5370932688993656500"  # Разработчик
+        self.info_emoji_id = "5422439311196834318"  # Информация
         
-        self.min_animation_time = BotConfig.LOADER.get("min_animation_time", 1.0)
-        self.delete_delay = BotConfig.LOADER.get("delete_delay", 5.0)
+        self.min_animation_time = BotConfig.LOADER["min_animation_time"]
+        self.delete_delay = BotConfig.LOADER["delete_delay"]
         
-        # Регистрация команд из MODULE_INFO
-        for cmd_info in MODULE_INFO["commands"]:
-            if cmd_info["command"] == "lm":
-                bot.register_command(
-                    cmd=cmd_info["command"],
-                    handler=self.load_module,
-                    description=cmd_info["description"],
-                    module_name=MODULE_INFO["name"]
-                )
-            elif cmd_info["command"] == "ulm":
-                bot.register_command(
-                    cmd=cmd_info["command"],
-                    handler=self.unload_module,
-                    description=cmd_info["description"],
-                    module_name=MODULE_INFO["name"]
-                )
+        bot.register_command(
+            cmd="lm",
+            handler=self.load_module,
+            description="Загрузить модуль из файла",
+            module_name="Loader"
+        )
         
-        bot.set_module_description(MODULE_INFO["name"], MODULE_INFO["description"])
+        bot.register_command(
+            cmd="ulm",
+            handler=self.unload_module,
+            description="Выгрузить модуль",
+            module_name="Loader"
+        )
+        
+        bot.set_module_description("Loader", "Динамическая загрузка модулей")
 
     def get_random_smile(self):
+        """Возвращает случайный смайл из конфигурации"""
         return random.choice(BotConfig.DEFAULT_SMILES)
 
     async def get_user_info(self, event):
@@ -92,103 +67,104 @@ class LoaderModule:
             logger.error(f"Ошибка получения информации о пользователе: {str(e)}")
             return {"premium": False, "username": "unknown"}
 
-    async def find_module_by_name(self, module_query):
-        """Находит модуль по имени с учетом частичных совпадений"""
-        normalized_query = module_query.lower().strip()
+    def _camel_to_snake(self, name):
+        """Преобразует CamelCase в snake_case"""
+        name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+        return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
+
+    def _module_name_to_filename(self, module_name):
+        """Преобразует имя модуля в предполагаемое имя файла"""
+        variants = [
+            module_name.lower() + '.py',
+            self._camel_to_snake(module_name) + '.py',
+            module_name + '.py'
+        ]
+        return variants
+
+    async def find_module_info(self, module_name):
+        normalized_query = module_name.lower().strip()
         
-        # Сначала проверяем точное совпадение
-        if normalized_query in [name.lower() for name in self.bot.modules.keys()]:
-            for name in self.bot.modules.keys():
-                if name.lower() == normalized_query:
-                    return name
+        if module_name in self.bot.modules:
+            return module_name, await self.get_module_info(module_name)
         
-        # Ищем по частичному совпадению
+        for name in self.bot.modules.keys():
+            if name.lower() == normalized_query:
+                return name, await self.get_module_info(name)
+        
         closest = difflib.get_close_matches(
             normalized_query,
             [name.lower() for name in self.bot.modules.keys()],
             n=1,
-            cutoff=0.7
+            cutoff=0.6
         )
         
         if closest:
             for name in self.bot.modules.keys():
                 if name.lower() == closest[0]:
-                    return name
+                    return name, await self.get_module_info(name)
+        
+        return None, None
+
+    def find_module_file(self, query):
+        normalized_query = query.lower().strip().replace('.py', '')
+        modules_dir = Path("modules").resolve()
+        
+        if not modules_dir.exists():
+            logger.error(f"Директория модулей не найдена: {modules_dir}")
+            return None
+
+        files = [f for f in modules_dir.iterdir() if f.is_file() and f.suffix == '.py']
+        
+        for file in files:
+            if file.stem.lower() == normalized_query:
+                return file
+
+        closest = difflib.get_close_matches(
+            normalized_query,
+            [f.stem.lower() for f in files],
+            n=1,
+            cutoff=0.7
+        )
+        
+        if closest:
+            for file in files:
+                if file.stem.lower() == closest[0]:
+                    return file
+        
+        snake_case_name = self._camel_to_snake(normalized_query)
+        for file in files:
+            if file.stem.lower() == snake_case_name:
+                return file
         
         return None
 
-    async def extract_module_name_from_file(self, file_path):
-        """Извлекает имя модуля из файла"""
+    async def get_module_info(self, module_name):
+        if module_name not in self.bot.modules:
+            return None
+            
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            
-            # Ищем определение модуля
-            module_pattern = r'def get_module_info\(\):.*?return\s*{.*?"name":\s*"([^"]+)"'
-            match = re.search(module_pattern, content, re.DOTALL)
-            if match:
-                return match.group(1)
-            
-            # Альтернативный поиск имени модуля
-            name_pattern = r'MODULE_NAME\s*=\s*["\']([^"\']+)["\']'
-            match = re.search(name_pattern, content)
-            if match:
-                return match.group(1)
-                
-        except Exception as e:
-            logger.error(f"Ошибка извлечения имени модуля: {str(e)}")
+            module = sys.modules.get(module_name)
+            if module and hasattr(module, 'get_module_info'):
+                info = module.get_module_info()
+                return info
+        except Exception:
+            pass
         
-        # Если не нашли в коде, используем имя файла
-        return Path(file_path).stem
-
-    async def unload_existing_module(self, module_name):
-        """Выгружает существующий модуль"""
-        if module_name in self.bot.modules:
-            # Удаляем команды модуля
-            commands_to_remove = [
-                cmd for cmd, data in self.bot.commands.items() 
-                if data.get("module") and data.get("module").lower() == module_name.lower()
-            ]
-            
-            for cmd in commands_to_remove:
-                del self.bot.commands[cmd]
-            
-            # Удаляем из sys.modules
-            if module_name in sys.modules:
-                del sys.modules[module_name]
-            
-            # Удаляем из bot.modules
-            if module_name in self.bot.modules:
-                del self.bot.modules[module_name]
-            
-            # Удаляем описание модуля
-            if module_name in self.bot.module_descriptions:
-                del self.bot.module_descriptions[module_name]
-            
-            logger.info(f"Модуль {module_name} выгружен")
-
-    async def check_and_install_dependencies(self, module_file, event, is_premium):
-        """Проверяет и устанавливает зависимости модуля"""
-        if not hasattr(self.bot, 'dependency_installer'):
-            return True
-            
-        async def install_deps():
-            installed, errors = await self.bot.dependency_installer.install_dependencies(module_file)
-            
-            if errors:
-                error_list = "\n".join([f"• {error}" for error in errors[:3]])
-                raise Exception(f"Ошибки установки зависимостей:\n{error_list}")
-            
-            return True
-            
-        try:
-            return await self.animate_loading_until_done(
-                event, "Установка зависимостей", is_premium, install_deps()
-            )
-        except Exception as e:
-            logger.error(f"Ошибка установки зависимостей: {str(e)}")
-            await event.edit(f"[❌](emoji/{self.error_emoji_id}) {str(e)}")
-            return False
+        commands = []
+        for cmd, data in self.bot.modules[module_name].items():
+            commands.append({
+                "command": cmd,
+                "description": data.get("description", "Без описания")
+            })
+        
+        return {
+            "name": module_name,
+            "description": self.bot.module_descriptions.get(module_name, ""),
+            "commands": commands,
+            "is_stock": module_name in self.bot.core_modules,
+            "version": "1.0.0",
+            "developer": "@BotHuekka"
+        }
 
     async def animate_loading_until_done(self, event, message, is_premium, coroutine):
         """Анимирует загрузку до завершения корутины"""
@@ -210,7 +186,7 @@ class LoaderModule:
         try:
             while True:
                 frame = animation[i % len(animation)]
-                prefix = f"[⚙️](emoji/{self.loader_emoji_id}) " if is_premium else "⚙️ "
+                prefix = f"[⌛️](emoji/{self.loader_emoji_id}) " if is_premium else "⌛️ "
                 await event.edit(f"{prefix}{message} {frame}")
                 i += 1
                 await asyncio.sleep(0.3)
@@ -219,14 +195,37 @@ class LoaderModule:
         except Exception as e:
             logger.error(f"Ошибка анимации: {str(e)}")
 
+    async def check_and_install_dependencies(self, module_file, event, is_premium):
+        """Проверяет и устанавливает зависимости модуля"""
+        if not hasattr(self.bot, 'dependency_installer'):
+            return True
+            
+        async def install_deps():
+            installed, errors = await self.bot.dependency_installer.install_dependencies(module_file)
+            
+            if errors:
+                error_list = "\n".join([f"• {error}" for error in errors[:3]])
+                raise Exception(f"Ошибки установки зависимостей:\n{error_list}")
+            
+            return True
+            
+        try:
+            return await self.animate_loading_until_done(
+                event, "Устанавливаю зависимости...", is_premium, install_deps()
+            )
+        except Exception as e:
+            logger.error(f"Ошибка установки зависимостей: {str(e)}")
+            await event.edit(f"[❌](emoji/5210952531676504517) {str(e)}")
+            return False
+
     async def load_module(self, event):
         if not event.is_reply:
-            await event.edit(f"[ℹ️](emoji/{self.info_emoji_id}) **Ответьте на сообщение с файлом модуля!**")
+            await event.edit("[ℹ️](emoji/5422439311196834318) **Ответьте на сообщение с файлом модуля!**")
             return
 
         reply = await event.get_reply_message()
         if not reply.document or not reply.document.mime_type == "text/x-python":
-            await event.edit(f"[🚫](emoji/{self.error_emoji_id}) **Это не Python-файл!**")
+            await event.edit("[🚫](emoji/5240241223632954241) **Это не Python-файл!**")
             return
 
         user_info = await self.get_user_info(event)
@@ -239,9 +238,14 @@ class LoaderModule:
                 break
         
         if not file_name:
-            await event.edit(f"[🚫](emoji/{self.error_emoji_id}) **Не удалось определить имени файла!**")
+            await event.edit("[🚫](emoji/5240241223632954241) **Не удалось определить имя файла!**")
             return
 
+        module_name = os.path.basename(file_name).replace(".py", "")
+        
+        # Показываем начальное сообщение о загрузке
+        await event.edit(f"[⌛️](emoji/{self.loader_emoji_id}) **Загружаю** `{module_name}` **...**")
+        
         temp_dir = Path("temp_modules")
         temp_dir.mkdir(exist_ok=True)
         temp_file = temp_dir / file_name
@@ -250,65 +254,99 @@ class LoaderModule:
             # Скачиваем файл
             module_file = await reply.download_media(file=str(temp_file))
             
-            # Извлекаем имя модуля из файла
-            module_name = await self.extract_module_name_from_file(module_file)
-            
             # Проверяем и устанавливаем зависимости
             deps_success = await self.check_and_install_dependencies(module_file, event, is_premium)
             if not deps_success:
+                logger.warning(f"Не удалось установить зависимости для {module_name}")
                 return
             
-            # Проверяем, существует ли уже модуль с таким именем
-            final_path = Path("modules") / file_name
-            existing_module = await self.find_module_by_name(module_name)
+            # Показываем сообщение о запуске
+            await event.edit(f"[⌛️](emoji/{self.loader_emoji_id}) **Запускаю ...**")
             
-            if existing_module:
-                # Выгружаем существующий модуль
-                await self.unload_existing_module(existing_module)
+            # Загружаем модуль с анимацией
+            async def load_module_task():
+                start_time = time.time()
+                before_commands = set(self.bot.commands.keys())
                 
-                # Удаляем старый файл
-                old_file = Path("modules") / f"{existing_module}.py"
-                if old_file.exists():
-                    os.remove(old_file)
-                    logger.info(f"Старый файл модуля {existing_module} удален")
+                spec = importlib.util.spec_from_file_location(module_name, module_file)
+                module = importlib.util.module_from_spec(spec)
                 
-                # Удаляем информацию из БД
-                self.bot.db.delete_module_info(existing_module)
-                logger.info(f"Информация о модуле {existing_module} удалена из БД")
+                spec.loader.exec_module(module)
+                
+                if not hasattr(module, 'setup'):
+                    raise Exception("В модуле отсутствует функция setup()")
+                
+                final_path = Path("modules") / file_name
+                os.rename(module_file, final_path)
+                module_file_path = str(final_path)
+                
+                spec = importlib.util.spec_from_file_location(module_name, module_file_path)
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[module_name] = module
+                spec.loader.exec_module(module)
+                
+                module.setup(self.bot)
+                    
+                after_commands = set(self.bot.commands.keys())
+                new_commands = after_commands - before_commands
+                
+                found_name, module_info = await self.find_module_info(module_name)
+                
+                # Формируем сообщение о успешной загрузке
+                if module_info:
+                    loaded_message = loader_format.format_loaded_message(
+                        module_info, is_premium, self.loaded_emoji_id, 
+                        self.get_random_smile(), self.command_emoji_id, self.dev_emoji_id,
+                        self.bot.command_prefix
+                    )
+                    logger.info(f"Модуль {found_name} загружен (команд: {len(new_commands)})")
+                else:
+                    module_info = {
+                        "name": module_name,
+                        "description": "Описание недоступно",
+                        "commands": [{
+                            "command": cmd, 
+                            "description": self.bot.commands[cmd].get("description", "Без описания")
+                        } for cmd in new_commands],
+                        "version": "1.0.0",
+                        "developer": "@BotHuekka"
+                    }
+                    loaded_message = loader_format.format_loaded_message(
+                        module_info, is_premium, self.loaded_emoji_id, 
+                        self.get_random_smile(), self.command_emoji_id, self.dev_emoji_id,
+                        self.bot.command_prefix
+                    )
+                
+                return loaded_message
             
-            # Перемещаем файл в папку modules
-            os.rename(module_file, final_path)
-            
-            # Сохраняем базовую информацию о модуле в БД
-            self.bot.db.set_module_info(
-                module_name,
-                "@BotHuekka",
-                "1.0.0",
-                "Описание будет доступно после перезагрузки",
-                [],
-                False
+            # Запускаем загрузку модуля с анимацией
+            loaded_message = await self.animate_loading_until_done(
+                event, "Запускаю ...", is_premium, load_module_task()
             )
             
-            # Показываем сообщение об успехе
-            if is_premium:
-                success_msg = f"[✅](emoji/{self.loaded_emoji_id}) **Модуль {module_name} успешно загружен!**\n\n__Перезагружаю бота...__"
-            else:
-                success_msg = f"✅ **Модуль {module_name} успешно загружен!**\n\n__Перезагружаю бота...__"
-            
-            await event.edit(success_msg)
-            
-            # Перезагружаем бота
-            await asyncio.sleep(2)
-            await self.bot.restart()
+            # Показываем результат
+            await event.edit(loaded_message)
                 
         except Exception as e:
             error_trace = traceback.format_exc()
             logger.error(f"Ошибка загрузки модуля: {str(e)}\n{error_trace}")
             
-            error_msg = f"[❌](emoji/{self.error_emoji_id}) **Ошибка загрузки модуля:** {str(e)}"
+            if 'module_file' in locals() and os.path.exists(module_file):
+                try:
+                    os.remove(module_file)
+                except:
+                    pass
+                    
+            modules_path = Path("modules") / file_name
+            if modules_path.exists():
+                try:
+                    os.remove(modules_path)
+                except:
+                    pass
+            
+            error_msg = msg.error("Ошибка загрузки модуля", str(e))
             await event.edit(error_msg)
         finally:
-            # Очищаем временные файлы
             try:
                 if temp_file.exists():
                     os.remove(temp_file)
@@ -316,56 +354,112 @@ class LoaderModule:
                 pass
 
     async def unload_module(self, event):
-        """Выгружает модуль по имени"""
-        args = event.text.split(" ", 1)
+        prefix = self.bot.command_prefix
+        
+        args = event.text.split()
         if len(args) < 2:
-            await event.edit("❌ Укажите название модуля для выгрузки.")
+            await event.edit(f"ℹ️ **Укажите название модуля:** `{prefix}ulm ModuleName`")
             return
 
-        module_query = args[1].strip()
+        module_query = " ".join(args[1:]).strip()
         
-        # Ищем модуль с учетом частичных совпадений
-        found_module = await self.find_module_by_name(module_query)
+        # Сначала ищем среди загруженных модулей
+        found_name, module_info = await self.find_module_info(module_query)
         
-        if not found_module:
-            await event.edit(f"❌ Модуль `{module_query}` не найден.")
+        module_path = None
+        if not found_name:
+            found_file = self.find_module_file(module_query)
+            if found_file:
+                for loaded_name in self.bot.modules.keys():
+                    if loaded_name.lower() == found_file.stem.lower():
+                        found_name = loaded_name
+                        module_info = await self.get_module_info(found_name)
+                        break
+                else:
+                    found_name = found_file.stem
+
+                module_path = found_file
+
+        if not found_name:
+            error_msg = msg.error(f"Модуль `{module_query}` не найден")
+            await event.edit(error_msg)
             return
+
+        if not module_path:
+            possible_filenames = self._module_name_to_filename(found_name)
+            modules_dir = Path("modules").resolve()
             
-        if found_module in self.bot.core_modules:
-            await event.edit(f"❌ Модуль `{found_module}` является системным и не может быть выгружен.")
+            for filename in possible_filenames:
+                possible_path = modules_dir / filename
+                if possible_path.exists():
+                    module_path = possible_path
+                    break
+            else:
+                module_path = self.find_module_file(found_name)
+
+        if not module_path or not module_path.exists():
+            error_msg = msg.error(f"Файл модуля `{found_name}` не найден")
+            await event.edit(error_msg)
             return
+
+        if found_name in self.bot.core_modules:
+            error_msg = msg.error(f"Модуль `{found_name}` является системным и не может быть выгружен")
+            await event.edit(error_msg)
+            return
+
+        user_info = await self.get_user_info(event)
+        is_premium = user_info["premium"]
+
+        # Показываем начальное сообщение об удалении
+        await event.edit(f"[⌛️](emoji/{self.loader_emoji_id}) **Удаляю** `{found_name}` **...**")
+        await asyncio.sleep(1)  # Небольшая пауза для визуального эффекта
+
+        # Используем анимацию для выгрузки модуля
+        async def unload_module_task():
+            start_time = time.time()
+            
+            if found_name in self.bot.modules:
+                commands_to_remove = [
+                    cmd for cmd, data in self.bot.commands.items() 
+                    if data.get("module") and data.get("module").lower() == found_name.lower()
+                ]
+                
+                for cmd in commands_to_remove:
+                    del self.bot.commands[cmd]
+            
+            if found_name in sys.modules:
+                del sys.modules[found_name]
+            
+            os.remove(module_path)
+            
+            if found_name in self.bot.modules:
+                del self.bot.modules[found_name]
+            
+            if found_name in self.bot.module_descriptions:
+                del self.bot.module_descriptions[found_name]
+            
+            elapsed = time.time() - start_time
+            if elapsed < self.min_animation_time:
+                await asyncio.sleep(self.min_animation_time - elapsed)
+            
+            return f"▪️ `{found_name}` __успешно удалён, используйте__ `{prefix}help` __для просмотра модулей и команд.__"
 
         try:
-            # Выгружаем модуль из памяти
-            await self.unload_existing_module(found_module)
+            # Показываем сообщение о запуске
+            await event.edit(f"[⌛️](emoji/{self.loader_emoji_id}) **Запускаю ...**")
             
-            # Удаляем файл модуля
-            module_file = Path("modules") / f"{found_module}.py"
-            if module_file.exists():
-                os.remove(module_file)
+            # Запускаем выгрузку модуля с анимацией
+            unloaded_message = await self.animate_loading_until_done(
+                event, "Запускаю ...", is_premium, unload_module_task()
+            )
             
-            # Удаляем информацию из БД
-            self.bot.db.delete_module_info(found_module)
+            await event.edit(unloaded_message)
             
-            # Показываем сообщение об успехе
-            user_info = await self.get_user_info(event)
-            is_premium = user_info["premium"]
-            
-            if is_premium:
-                success_msg = f"[✅](emoji/{self.unload_emoji_id}) **Модуль {found_module} успешно удален!**\n\n__Перезагружаю бота...__"
-            else:
-                success_msg = f"✅ **Модуль {found_module} успешно удален!**\n\n__Перезагружаю бота...__"
-            
-            await event.edit(success_msg)
-            
-            # Перезагружаем бота
-            await asyncio.sleep(2)
-            await self.bot.restart()
-
         except Exception as e:
-            error_msg = f"❌ Ошибка при выгрузке модуля: {str(e)}"
+            error_trace = traceback.format_exc()
+            logger.error(f"Ошибка выгрузки модуля: {str(e)}\n{error_trace}")
+            error_msg = msg.error("Ошибка выгрузки модуля", str(e))
             await event.edit(error_msg)
-            logger.error(f"Ошибка выгрузки модуля {found_module}: {str(e)}")
 
 def setup(bot):
     LoaderModule(bot)

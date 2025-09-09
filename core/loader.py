@@ -26,12 +26,12 @@ class LoaderModule:
     def __init__(self, bot):
         self.bot = bot
         
-        # Новые emoji ID
-        self.loader_emoji_id = "5980787993139481991"  # Часики
-        self.loaded_emoji_id = "5370932688993656500"  # Луна
-        self.command_emoji_id = "5370932688993656500"  # Команда
-        self.dev_emoji_id = "5370932688993656500"  # Разработчик
-        self.info_emoji_id = "5422439311196834318"  # Информация
+        # Используем emoji ID из конфига
+        self.loader_emoji_id = str(BotConfig.EMOJI_IDS["loader"])
+        self.loaded_emoji_id = str(BotConfig.EMOJI_IDS["loaded"])
+        self.command_emoji_id = str(BotConfig.EMOJI_IDS["command"])
+        self.dev_emoji_id = str(BotConfig.EMOJI_IDS["dev"])
+        self.info_emoji_id = str(BotConfig.EMOJI_IDS["info"])
         
         self.min_animation_time = BotConfig.LOADER["min_animation_time"]
         self.delete_delay = BotConfig.LOADER["delete_delay"]
@@ -53,8 +53,13 @@ class LoaderModule:
         bot.set_module_description("Loader", "Динамическая загрузка модулей")
 
     def get_random_smile(self):
-        """Возвращает случайный смайл из конфигурации"""
-        return random.choice(BotConfig.DEFAULT_SMILES)
+        """Возвращает случайный смайл из базы данных или конфигурации"""
+        try:
+            # Пытаемся получить из базы данных
+            return self.bot.db.get_random_smile()
+        except AttributeError:
+            # Если база данных не доступна, используем конфиг
+            return random.choice(BotConfig.DEFAULT_SMILES)
 
     async def get_user_info(self, event):
         try:
@@ -442,7 +447,11 @@ class LoaderModule:
             if elapsed < self.min_animation_time:
                 await asyncio.sleep(self.min_animation_time - elapsed)
             
-            return f"[▪️](emoji/5251522431977291010) `{found_name}` __успешно удалён, используйте__ `{prefix}help` __для просмотра модулей и команд.__"
+            # Используем форматтер для сообщения об удалении
+            if is_premium:
+                return f"[▪️](emoji/{self.info_emoji_id}) `{found_name}` __успешно удалён, используйте__ `{prefix}help` __для просмотра модулей и команд.__"
+            else:
+                return f"▪️ `{found_name}` __успешно удалён, используйте__ `{prefix}help` __для просмотра модулей и команд.__"
 
         try:
             # Показываем сообщение о запуске

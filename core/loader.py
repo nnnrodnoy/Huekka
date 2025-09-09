@@ -442,7 +442,7 @@ class LoaderModule:
             if elapsed < self.min_animation_time:
                 await asyncio.sleep(self.min_animation_time - elapsed)
             
-            return f"▪️ `{found_name}` __успешно удалён, используйте__ `{prefix}help` __для просмотра модулей и команд.__"
+            return f"[🫶](emoji/5323335891484174328) `{found_name}` __успешно удалён, используйте__ `{prefix}help` __для просмотра модулей и команд.__"
 
         try:
             # Показываем сообщение о запуске
@@ -450,7 +450,7 @@ class LoaderModule:
             
             # Запускаем выгрузку модуля с анимацией
             unloaded_message = await self.animate_loading_until_done(
-                event, "Запускаю ...", is_premium, unload_module_task()
+                event, "**Запускаю ...**", is_premium, unload_module_task()
             )
             
             await event.edit(unloaded_message)

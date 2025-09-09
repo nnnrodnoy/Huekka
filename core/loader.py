@@ -299,7 +299,7 @@ class LoaderModule:
                         self.get_random_smile(), self.command_emoji_id, self.dev_emoji_id,
                         self.bot.command_prefix
                     )
-                    logger.info(f"Модуль {found_name} загружен (команд: {len(new_commands)})")
+                    logger.info(f"Модуль {found_name}  (команд: {len(new_commands)})")
                 else:
                     module_info = {
                         "name": module_name,
@@ -442,7 +442,7 @@ class LoaderModule:
             if elapsed < self.min_animation_time:
                 await asyncio.sleep(self.min_animation_time - elapsed)
             
-            return f"[🫶](emoji/5323335891484174328) `{found_name}` __успешно удалён, используйте__ `{prefix}help` __для просмотра модулей и команд.__"
+            return f"[▪️](emoji/5251522431977291010) `{found_name}` __успешно удалён, используйте__ `{prefix}help` __для просмотра модулей и команд.__"
 
         try:
             # Показываем сообщение о запуске

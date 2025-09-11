@@ -273,6 +273,10 @@ class LoaderModule:
                 start_time = time.time()
                 before_commands = set(self.bot.commands.keys())
                 
+                # Удаляем старую информацию о модуле из БД, если он уже существует
+                if module_name in self.bot.modules:
+                    self.bot.db.delete_module_info(module_name)
+                
                 spec = importlib.util.spec_from_file_location(module_name, module_file)
                 module = importlib.util.module_from_spec(spec)
                 
@@ -295,6 +299,40 @@ class LoaderModule:
                 after_commands = set(self.bot.commands.keys())
                 new_commands = after_commands - before_commands
                 
+                # Получаем информацию о модуле
+                if hasattr(module, 'get_module_info'):
+                    module_info = module.get_module_info()
+                    # Сохраняем в БД
+                    self.bot.db.set_module_info(
+                        module_info['name'],
+                        module_info['developer'],
+                        module_info['version'],
+                        module_info['description'],
+                        module_info['commands'],
+                        False  # is_stock = False для пользовательских модулей
+                    )
+                else:
+                    module_info = {
+                        "name": module_name,
+                        "description": self.bot.module_descriptions.get(module_name, ""),
+                        "commands": [{
+                            "command": cmd, 
+                            "description": self.bot.commands[cmd].get("description", "Без описания")
+                        } for cmd in new_commands],
+                        "version": "1.0.0",
+                        "developer": "@BotHuekka"
+                    }
+                    # Сохраняем в БД
+                    self.bot.db.set_module_info(
+                        module_info['name'],
+                        module_info['developer'],
+                        module_info['version'],
+                        module_info['description'],
+                        module_info['commands'],
+                        False  # is_stock = False для пользовательских модулей
+                    )
+                
+                # Получаем актуальную информацию из БД
                 found_name, module_info = await self.find_module_info(module_name)
                 
                 # Формируем сообщение о успешной загрузке
@@ -442,6 +480,9 @@ class LoaderModule:
             
             if found_name in self.bot.module_descriptions:
                 del self.bot.module_descriptions[found_name]
+            
+            # Удаляем информацию о модуле из базы данных
+            self.bot.db.delete_module_info(found_name)
             
             elapsed = time.time() - start_time
             if elapsed < self.min_animation_time:

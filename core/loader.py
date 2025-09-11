@@ -395,6 +395,7 @@ class LoaderModule:
                 # Получаем информацию о модуле
                 if hasattr(module, 'get_module_info'):
                     module_info = module.get_module_info()
+                    logger.info(f"Информация из модуля {module_name}: {module_info}")
                     # Сохраняем в БД
                     self.bot.db.set_module_info(
                         module_info['name'],
@@ -415,6 +416,7 @@ class LoaderModule:
                         "version": "1.0.0",
                         "developer": "@BotHuekka"
                     }
+                    logger.info(f"Сформирована информация о модуле {module_name}: {module_info}")
                     # Сохраняем в БД
                     self.bot.db.set_module_info(
                         module_info['name'],
@@ -425,33 +427,13 @@ class LoaderModule:
                         False  # is_stock = False для пользовательских модулей
                     )
                 
-                # Получаем актуальную информацию из БД
-                found_name, module_info = await self.find_module_info(module_name)
-                
                 # Формируем сообщение о успешной загрузке
-                if module_info:
-                    loaded_message = loader_format.format_loaded_message(
-                        module_info, is_premium, self.loaded_emoji_id, 
-                        self.get_random_smile(), self.command_emoji_id, self.dev_emoji_id,
-                        self.bot.command_prefix
-                    )
-                    logger.info(f"Модуль {found_name} загружен (команд: {len(new_commands)})")
-                else:
-                    module_info = {
-                        "name": module_name,
-                        "description": "Описание недоступно",
-                        "commands": [{
-                            "command": cmd, 
-                            "description": self.bot.commands[cmd].get("description", "Без описания")
-                        } for cmd in new_commands],
-                        "version": "1.0.0",
-                        "developer": "@BotHuekka"
-                    }
-                    loaded_message = loader_format.format_loaded_message(
-                        module_info, is_premium, self.loaded_emoji_id, 
-                        self.get_random_smile(), self.command_emoji_id, self.dev_emoji_id,
-                        self.bot.command_prefix
-                    )
+                loaded_message = loader_format.format_loaded_message(
+                    module_info, is_premium, self.loaded_emoji_id, 
+                    self.get_random_smile(), self.command_emoji_id, self.dev_emoji_id,
+                    self.bot.command_prefix
+                )
+                logger.info(f"Модуль {module_name} загружен (команд: {len(new_commands)})")
                 
                 return loaded_message
             
@@ -585,7 +567,7 @@ class LoaderModule:
             if is_premium:
                 return f"[▪️](emoji/{self.info_emoji_id}) `{found_name}` __успешно удалён, используйте__ `{prefix}help` __для просмотра модулей и команд.__"
             else:
-                return f"▪️ `{found_name}` __успешно удалён, используйте__ `{prefix}help` __для просмотра модулей и команд.__"
+                return f"▪️ `{found_name}` __успешно удалён, используйте__ `{prefix}help` __для просмотra модулей и команд.__"
 
         try:
             # Показываем сообщение о запуске

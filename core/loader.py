@@ -392,6 +392,9 @@ class LoaderModule:
                 logger.info(f"Количество команд после загрузки: {len(after_commands)}")
                 logger.info(f"Новые команды: {new_commands}")
                 
+                # Удаляем старую информацию о модуле из БД перед сохранением новой
+                self.bot.db.delete_module_info(module_name)
+                
                 # Получаем информацию о модуле
                 if hasattr(module, 'get_module_info'):
                     module_info = module.get_module_info()
@@ -567,7 +570,7 @@ class LoaderModule:
             if is_premium:
                 return f"[▪️](emoji/{self.info_emoji_id}) `{found_name}` __успешно удалён, используйте__ `{prefix}help` __для просмотра модулей и команд.__"
             else:
-                return f"▪️ `{found_name}` __успешно удалён, используйте__ `{prefix}help` __для просмотra модулей и команд.__"
+                return f"▪️ `{found_name}` __успешно удалён, используйте__ `{prefix}help` __для просмотра модулей и команд.__"
 
         try:
             # Показываем сообщение о запуске

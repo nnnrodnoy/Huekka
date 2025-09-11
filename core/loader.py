@@ -22,6 +22,26 @@ from core.formatters import loader_format, msg
 
 logger = logging.getLogger("UserBot.Loader")
 
+def get_module_info():
+    return {
+        "name": "Loader",
+        "description": "Динамическая загрузка модулей",
+        "developer": "@BotHuekka",
+        "version": "1.0.0",
+        "commands": [
+            {
+                "command": "lm",
+                "description": "Загрузить модуль из файла"
+            },
+            {
+                "command": "ulm",
+                "description": "Выгрузить модуль"
+            }
+        ]
+    }
+
+MODULE_INFO = get_module_info()
+
 class LoaderModule:
     def __init__(self, bot):
         self.bot = bot
@@ -40,17 +60,30 @@ class LoaderModule:
             cmd="lm",
             handler=self.load_module,
             description="Загрузить модуль из файла",
-            module_name="Loader"
+            module_name=MODULE_INFO["name"]
         )
         
         bot.register_command(
             cmd="ulm",
             handler=self.unload_module,
             description="Выгрузить модуль",
-            module_name="Loader"
+            module_name=MODULE_INFO["name"]
         )
         
-        bot.set_module_description("Loader", "Динамическая загрузка модулей")
+        bot.set_module_description(MODULE_INFO["name"], MODULE_INFO["description"])
+        
+        # Сохраняем информацию о модуле в базу данных
+        success = bot.db.set_module_info(
+            MODULE_INFO["name"],
+            MODULE_INFO["developer"],
+            MODULE_INFO["version"],
+            MODULE_INFO["description"],
+            MODULE_INFO["commands"],
+            True  # is_stock = True для core-модулей
+        )
+        
+        if not success:
+            logger.error("Не удалось сохранить информацию о модуле Loader в базу данных")
 
     def get_random_smile(self):
         """Возвращает случайный смайл из базы данных или конфигурации"""
@@ -223,6 +256,42 @@ class LoaderModule:
             await event.edit(f"[❌](emoji/5210952531676504517) {str(e)}")
             return False
 
+    async def unload_existing_module(self, module_name):
+        """Выгружает существующий модуль перед загрузкой новой версии"""
+        if module_name not in self.bot.modules:
+            return True
+            
+        if module_name in self.bot.core_modules:
+            logger.warning(f"Попытка выгрузить системный модуль: {module_name}")
+            return False
+            
+        # Удаляем команды модуля
+        commands_to_remove = [
+            cmd for cmd, data in self.bot.commands.items() 
+            if data.get("module") and data.get("module").lower() == module_name.lower()
+        ]
+        
+        for cmd in commands_to_remove:
+            del self.bot.commands[cmd]
+        
+        # Удаляем модуль из sys.modules
+        if module_name in sys.modules:
+            del sys.modules[module_name]
+        
+        # Удаляем модуль из self.bot.modules
+        if module_name in self.bot.modules:
+            del self.bot.modules[module_name]
+        
+        # Удаляем описание модуля
+        if module_name in self.bot.module_descriptions:
+            del self.bot.module_descriptions[module_name]
+        
+        # Удаляем информацию о модуле из базы данных
+        self.bot.db.delete_module_info(module_name)
+        
+        logger.info(f"Модуль {module_name} выгружен перед загрузкой новой версии")
+        return True
+
     async def load_module(self, event):
         if not event.is_reply:
             await event.edit("[ℹ️](emoji/5422439311196834318) **Ответьте на сообщение с файлом модуля!**")
@@ -248,6 +317,11 @@ class LoaderModule:
 
         module_name = os.path.basename(file_name).replace(".py", "")
         
+        # Проверяем, не является ли модуль системным
+        if module_name in self.bot.core_modules:
+            await event.edit("[🚫](emoji/5240241223632954241) **Нельзя перезаписать системный модуль!**")
+            return
+
         # Показываем начальное сообщение о загрузке
         await event.edit(f"[⌛️](emoji/{self.loader_emoji_id}) **Загружаю** `{module_name}` **...**")
         
@@ -265,6 +339,9 @@ class LoaderModule:
                 logger.warning(f"Не удалось установить зависимости для {module_name}")
                 return
             
+            # Выгружаем существующий модуль, если он есть
+            await self.unload_existing_module(module_name)
+            
             # Показываем сообщение о запуске
             await event.edit(f"[⌛️](emoji/{self.loader_emoji_id}) **Запускаю ...**")
             
@@ -272,10 +349,6 @@ class LoaderModule:
             async def load_module_task():
                 start_time = time.time()
                 before_commands = set(self.bot.commands.keys())
-                
-                # Удаляем старую информацию о модуле из БД, если он уже существует
-                if module_name in self.bot.modules:
-                    self.bot.db.delete_module_info(module_name)
                 
                 spec = importlib.util.spec_from_file_location(module_name, module_file)
                 module = importlib.util.module_from_spec(spec)
@@ -342,7 +415,7 @@ class LoaderModule:
                         self.get_random_smile(), self.command_emoji_id, self.dev_emoji_id,
                         self.bot.command_prefix
                     )
-                    logger.info(f"Модуль {found_name}  (команд: {len(new_commands)})")
+                    logger.info(f"Модуль {found_name} загружен (команд: {len(new_commands)})")
                 else:
                     module_info = {
                         "name": module_name,

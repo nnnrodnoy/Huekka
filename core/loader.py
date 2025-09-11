@@ -400,7 +400,7 @@ class LoaderModule:
                     module_info = module.get_module_info()
                     logger.info(f"Информация из модуля {module_name}: {module_info}")
                     # Сохраняем в БД
-                    self.bot.db.set_module_info(
+                    success = self.bot.db.set_module_info(
                         module_info['name'],
                         module_info['developer'],
                         module_info['version'],
@@ -408,6 +408,8 @@ class LoaderModule:
                         module_info['commands'],
                         False  # is_stock = False для пользовательских модулей
                     )
+                    if not success:
+                        logger.error(f"Не удалось сохранить информацию о модуле {module_name} в БД")
                 else:
                     module_info = {
                         "name": module_name,
@@ -421,7 +423,7 @@ class LoaderModule:
                     }
                     logger.info(f"Сформирована информация о модуле {module_name}: {module_info}")
                     # Сохраняем в БД
-                    self.bot.db.set_module_info(
+                    success = self.bot.db.set_module_info(
                         module_info['name'],
                         module_info['developer'],
                         module_info['version'],
@@ -429,6 +431,8 @@ class LoaderModule:
                         module_info['commands'],
                         False  # is_stock = False для пользовательских модулей
                     )
+                    if not success:
+                        logger.error(f"Не удалось сохранить информацию о модуле {module_name} в БД")
                 
                 # Формируем сообщение о успешной загрузке
                 loaded_message = loader_format.format_loaded_message(

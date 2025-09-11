@@ -259,35 +259,46 @@ class LoaderModule:
     async def unload_existing_module(self, module_name):
         """Выгружает существующий модуль перед загрузкой новой версии"""
         if module_name not in self.bot.modules:
+            logger.info(f"Модуль {module_name} не загружен, пропускаем выгрузку")
             return True
             
         if module_name in self.bot.core_modules:
             logger.warning(f"Попытка выгрузить системный модуль: {module_name}")
             return False
             
+        logger.info(f"Выгружаем модуль {module_name}")
+        
         # Удаляем команды модуля
-        commands_to_remove = [
-            cmd for cmd, data in self.bot.commands.items() 
-            if data.get("module") and data.get("module").lower() == module_name.lower()
-        ]
+        commands_to_remove = []
+        for cmd, data in self.bot.commands.items():
+            if data.get("module"):
+                if data.get("module").lower() == module_name.lower():
+                    commands_to_remove.append(cmd)
+        
+        logger.info(f"Найдены команды для удаления: {commands_to_remove}")
         
         for cmd in commands_to_remove:
             del self.bot.commands[cmd]
+            logger.info(f"Команда {cmd} удалена")
         
         # Удаляем модуль из sys.modules
         if module_name in sys.modules:
             del sys.modules[module_name]
+            logger.info(f"Модуль {module_name} удален из sys.modules")
         
         # Удаляем модуль из self.bot.modules
         if module_name in self.bot.modules:
             del self.bot.modules[module_name]
+            logger.info(f"Модуль {module_name} удален из self.bot.modules")
         
         # Удаляем описание модуля
         if module_name in self.bot.module_descriptions:
             del self.bot.module_descriptions[module_name]
+            logger.info(f"Описание модуля {module_name} удалено")
         
         # Удаляем информацию о модуле из базы данных
         self.bot.db.delete_module_info(module_name)
+        logger.info(f"Информация о модуле {module_name} удалена из БД")
         
         logger.info(f"Модуль {module_name} выгружен перед загрузкой новой версии")
         return True
@@ -349,6 +360,7 @@ class LoaderModule:
             async def load_module_task():
                 start_time = time.time()
                 before_commands = set(self.bot.commands.keys())
+                logger.info(f"Количество команд до загрузки: {len(before_commands)}")
                 
                 spec = importlib.util.spec_from_file_location(module_name, module_file)
                 module = importlib.util.module_from_spec(spec)
@@ -359,6 +371,11 @@ class LoaderModule:
                     raise Exception("В модуле отсутствует функция setup()")
                 
                 final_path = Path("modules") / file_name
+                
+                # Удаляем старый файл, если он существует
+                if final_path.exists():
+                    os.remove(final_path)
+                
                 os.rename(module_file, final_path)
                 module_file_path = str(final_path)
                 
@@ -371,6 +388,9 @@ class LoaderModule:
                     
                 after_commands = set(self.bot.commands.keys())
                 new_commands = after_commands - before_commands
+                
+                logger.info(f"Количество команд после загрузки: {len(after_commands)}")
+                logger.info(f"Новые команды: {new_commands}")
                 
                 # Получаем информацию о модуле
                 if hasattr(module, 'get_module_info'):

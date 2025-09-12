@@ -58,7 +58,19 @@ class BotConfig:
             "main.py",
             "userbot.py",
             "core/parser.py",
-            "core/__init__.py"
+            "core/__init__.py",
+            "updater.py",
+            "config.py",
+            "arter.py",
+            "installer.sh",
+            "start_bot.sh",
+            "requirements.txt"
+        ],
+        "update_dirs": [         # Директории для полной проверки обновлений
+            "core",
+            "asset", 
+            "arts",
+            "modules"
         ],
         "min_display_time": 2.0  # Минимальное время отображения сообщения
     }

@@ -14,6 +14,8 @@ import json
 import time
 import hashlib
 import logging
+import requests
+import zipfile
 from pathlib import Path
 from config import BotConfig
 
@@ -27,11 +29,11 @@ class UpdateColors:
     ENDC = '\033[0m'
 
 class GitHubUpdater:
-    def __init__(self, bot):
+    def __init__(self, bot=None):
         self.bot = bot
         self.repo_url = BotConfig.UPDATER["repo_url"]
         self.update_files = BotConfig.UPDATER["system_files"]
-        self.update_dirs = ['asset', 'arts', 'core']
+        self.update_dirs = ['asset', 'arts', 'core', 'modules']
         self.last_update_file = Path("data") / "last_update.txt"
         self.last_update_file.parent.mkdir(exist_ok=True)
     
@@ -112,10 +114,66 @@ class GitHubUpdater:
             logger.error(f"Ошибка проверки обновлений: {str(e)}")
             return False
     
+    async def get_repo_file_list(self, extracted_dir):
+        """Получает список всех файлов в репозитории"""
+        repo_files = set()
+        
+        # Добавляем файлы из update_files
+        for file in self.update_files:
+            repo_file = extracted_dir / file
+            if repo_file.exists():
+                repo_files.add(str(file))
+        
+        # Добавляем файлы из update_dirs
+        for dir_name in self.update_dirs:
+            repo_dir = extracted_dir / dir_name
+            if repo_dir.exists():
+                for root, _, files in os.walk(repo_dir):
+                    for file in files:
+                        repo_file_path = Path(root) / file
+                        relative_path = str(repo_file_path.relative_to(extracted_dir))
+                        repo_files.add(relative_path)
+        
+        return repo_files
+    
+    async def remove_deleted_files(self, extracted_dir, repo_files):
+        """Удаляет файлы, которые были удалены в репозитории"""
+        removed_count = 0
+        
+        # Проверяем файлы из update_files
+        for file in self.update_files:
+            local_file = Path(file)
+            repo_file = extracted_dir / file
+            
+            if local_file.exists() and not repo_file.exists():
+                local_file.unlink()
+                self._print_update_status(f"Removed: {file}")
+                removed_count += 1
+        
+        # Проверяем файлы из update_dirs
+        for dir_name in self.update_dirs:
+            local_dir = Path(dir_name)
+            repo_dir = extracted_dir / dir_name
+            
+            if local_dir.exists():
+                for root, _, files in os.walk(local_dir):
+                    for file in files:
+                        local_file_path = Path(root) / file
+                        relative_path = str(local_file_path.relative_to(local_dir.parent))
+                        
+                        # Если файл не существует в репозитории, удаляем его
+                        if relative_path not in repo_files:
+                            local_file_path.unlink()
+                            self._print_update_status(f"Removed: {relative_path}")
+                            removed_count += 1
+        
+        return removed_count
+    
     async def perform_update(self):
-        """Выполняет обновление только измененных файлов"""
+        """Выполняет полное обновление с проверкой всех файлов"""
         temp_dir = tempfile.mkdtemp(prefix="huekka_update_")
         updated_files = 0
+        removed_files = 0
         
         try:
             # Получаем хэш последнего коммита перед обновлением
@@ -139,6 +197,12 @@ class GitHubUpdater:
                 zip_ref.extractall(temp_dir)
             
             extracted_dir = Path(temp_dir) / "Huekka-main"
+            
+            # Получаем список всех файлов в репозитории
+            repo_files = await self.get_repo_file_list(extracted_dir)
+            
+            # Удаляем файлы, которых нет в репозитории
+            removed_files = await self.remove_deleted_files(extracted_dir, repo_files)
             
             # Обновляем файлы только если они изменились
             for file in self.update_files:
@@ -189,10 +253,10 @@ class GitHubUpdater:
                             else:
                                 logger.info(f"File unchanged: {local_file_path}")
             
-            if updated_files > 0:
+            if updated_files > 0 or removed_files > 0:
                 # Сохраняем хэш коммита как дату последнего обновления
                 await self.set_local_last_update(latest_commit)
-                self._print_update_status(f"Updated {updated_files} files")
+                self._print_update_status(f"Updated {updated_files} files, removed {removed_files} files")
                 return True
             else:
                 self._print_update_status("No files need updating")
@@ -232,7 +296,7 @@ class GitHubUpdater:
 # Для использования в main.py
 async def check_and_update():
     """Функция для автоматической проверки обновлений при запуске"""
-    updater = GitHubUpdater(None)  # None т.к. бот еще не создан
+    updater = GitHubUpdater()
     
     try:
         # Проверяем и устанавливаем обновления

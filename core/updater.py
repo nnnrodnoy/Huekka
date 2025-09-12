@@ -33,9 +33,13 @@ class GitHubUpdater:
         self.bot = bot
         self.repo_url = BotConfig.UPDATER["repo_url"]
         self.update_files = BotConfig.UPDATER["system_files"]
-        self.update_dirs = ['asset', 'arts', 'core', 'modules']
+        self.update_dirs = ['asset', 'arts', 'core']
         self.last_update_file = Path("data") / "last_update.txt"
         self.last_update_file.parent.mkdir(exist_ok=True)
+        
+        # Папки и файлы, которые нужно игнорировать при обновлении
+        self.ignore_dirs = {'session', 'logs', 'modules'}
+        self.ignore_files = {'config.db'}
     
     def _print_update_status(self, message):
         """Красивый вывод статуса обновления"""
@@ -54,6 +58,21 @@ class GitHubUpdater:
                     break
                 hasher.update(data)
         return hasher.hexdigest()
+    
+    def _should_ignore(self, file_path):
+        """Проверяет, нужно ли игнорировать файл/папку"""
+        path_str = str(file_path)
+        
+        # Проверяем игнорируемые папки
+        for ignore_dir in self.ignore_dirs:
+            if ignore_dir in path_str.split(os.sep):
+                return True
+                
+        # Проверяем игнорируемые файлы
+        if file_path.name in self.ignore_files:
+            return True
+            
+        return False
     
     async def get_latest_commit_info(self):
         """Получает информацию о последнем коммите из репозитория"""
@@ -137,7 +156,7 @@ class GitHubUpdater:
         return repo_files
     
     async def remove_deleted_files(self, extracted_dir, repo_files):
-        """Удаляет файлы, которые были удалены в репозитории"""
+        """Удаляет файлы, которые были удалены в репозитории, кроме игнорируемых"""
         removed_count = 0
         
         # Проверяем файлы из update_files
@@ -145,7 +164,7 @@ class GitHubUpdater:
             local_file = Path(file)
             repo_file = extracted_dir / file
             
-            if local_file.exists() and not repo_file.exists():
+            if local_file.exists() and not repo_file.exists() and not self._should_ignore(local_file):
                 local_file.unlink()
                 self._print_update_status(f"Removed: {file}")
                 removed_count += 1
@@ -161,8 +180,9 @@ class GitHubUpdater:
                         local_file_path = Path(root) / file
                         relative_path = str(local_file_path.relative_to(local_dir.parent))
                         
-                        # Если файл не существует в репозитории, удаляем его
-                        if relative_path not in repo_files:
+                        # Если файл не существует в репозитории и не в списке игнорируемых
+                        if (relative_path not in repo_files and 
+                            not self._should_ignore(local_file_path)):
                             local_file_path.unlink()
                             self._print_update_status(f"Removed: {relative_path}")
                             removed_count += 1
@@ -201,15 +221,15 @@ class GitHubUpdater:
             # Получаем список всех файлов в репозитории
             repo_files = await self.get_repo_file_list(extracted_dir)
             
-            # Удаляем файлы, которых нет в репозитории
+            # Удаляем файлы, которых нет в репозитории (кроме игнорируемых)
             removed_files = await self.remove_deleted_files(extracted_dir, repo_files)
             
-            # Обновляем файлы только если они изменились
+            # Обновляем файлы только если они изменились и не в списке игнорируемых
             for file in self.update_files:
                 repo_file = extracted_dir / file
                 local_file = Path(file)
                 
-                if repo_file.exists():
+                if repo_file.exists() and not self._should_ignore(local_file):
                     # Создаем директорию, если её нет
                     local_file.parent.mkdir(parents=True, exist_ok=True)
                     
@@ -238,6 +258,10 @@ class GitHubUpdater:
                             relative_path = repo_file_path.relative_to(repo_dir)
                             local_file_path = local_dir / relative_path
                             
+                            # Пропускаем игнорируемые файлы
+                            if self._should_ignore(local_file_path):
+                                continue
+                                
                             # Проверяем, изменился ли файл
                             repo_hash = self._get_file_hash(repo_file_path)
                             local_hash = self._get_file_hash(local_file_path)

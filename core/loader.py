@@ -392,24 +392,33 @@ class LoaderModule:
                 logger.info(f"Количество команд после загрузки: {len(after_commands)}")
                 logger.info(f"Новые команды: {new_commands}")
                 
-                # Удаляем старую информацию о модуле из БД перед сохранением новой
-                self.bot.db.delete_module_info(module_name)
+                # Полностью очищаем базу данных модулей
+                self.bot.db.execute_query(
+                    "module_info.db",
+                    "DELETE FROM module_info",
+                    commit=True
+                )
+                logger.info("База данных модулей полностью очищена")
                 
-                # Получаем информацию о модуле
+                # Пересоздаем информацию о всех модулях
+                for name in self.bot.modules.keys():
+                    module_info = await self.get_module_info(name)
+                    if module_info:
+                        is_stock = name in self.bot.core_modules
+                        self.bot.db.set_module_info(
+                            module_info['name'],
+                            module_info['developer'],
+                            module_info['version'],
+                            module_info['description'],
+                            module_info['commands'],
+                            is_stock
+                        )
+                        logger.info(f"Информация о модуле {name} сохранена в БД")
+                
+                # Получаем информацию о текущем модуле
                 if hasattr(module, 'get_module_info'):
                     module_info = module.get_module_info()
                     logger.info(f"Информация из модуля {module_name}: {module_info}")
-                    # Сохраняем в БД
-                    success = self.bot.db.set_module_info(
-                        module_info['name'],
-                        module_info['developer'],
-                        module_info['version'],
-                        module_info['description'],
-                        module_info['commands'],
-                        False  # is_stock = False для пользовательских модулей
-                    )
-                    if not success:
-                        logger.error(f"Не удалось сохранить информацию о модуле {module_name} в БД")
                 else:
                     module_info = {
                         "name": module_name,
@@ -422,17 +431,6 @@ class LoaderModule:
                         "developer": "@BotHuekka"
                     }
                     logger.info(f"Сформирована информация о модуле {module_name}: {module_info}")
-                    # Сохраняем в БД
-                    success = self.bot.db.set_module_info(
-                        module_info['name'],
-                        module_info['developer'],
-                        module_info['version'],
-                        module_info['description'],
-                        module_info['commands'],
-                        False  # is_stock = False для пользовательских модулей
-                    )
-                    if not success:
-                        logger.error(f"Не удалось сохранить информацию о модуле {module_name} в БД")
                 
                 # Формируем сообщение о успешной загрузке
                 loaded_message = loader_format.format_loaded_message(
@@ -469,7 +467,7 @@ class LoaderModule:
                 except:
                     pass
             
-            error_msg = msg.error("Ошибка загрузки модуля", str(e))
+            error_msg = msg.error("Ошибка загрузка модуля", str(e))
             await event.edit(error_msg)
         finally:
             try:

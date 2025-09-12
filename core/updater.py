@@ -1,6 +1,6 @@
 # ©️ nnnrodnoy, 2025
 # 💬 @nnnrodnoyiiiii
-# This file is part of Huekka
+# This file is part of Hueka
 # 🌐 https://github.com/nnnrodnoy/Huekka/
 # You can redistribute it and/or modify it under the terms of the MIT License
 # 🔑 https://opensource.org/licenses/MIT

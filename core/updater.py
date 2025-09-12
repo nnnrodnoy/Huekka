@@ -38,7 +38,7 @@ class GitHubUpdater:
         self.last_update_file.parent.mkdir(exist_ok=True)
         
         # Папки и файлы, которые нужно игнорировать при обновлении
-        self.ignore_dirs = {'session', 'logs', 'modules'}
+        self.ignore_dirs = {'session', 'logs', 'data', 'modules'}
         self.ignore_files = {'config.db'}
     
     def _print_update_status(self, message):

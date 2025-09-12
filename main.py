@@ -37,7 +37,7 @@ from telethon.errors import (
 from arter import print_random_art, print_specific_art
 
 # Импортируем обновленную систему обновлений
-from updater import check_and_update
+from core.updater import check_and_update
 
 # Настройка логирования
 logging.basicConfig(

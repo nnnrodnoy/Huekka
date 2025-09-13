@@ -13,18 +13,20 @@ from telethon.errors.rpcerrorlist import MessageNotModifiedError
 logger = logging.getLogger("UserBot.Parser")
 
 class CustomParseMode:
-    """Чистый Markdown парсер с поддержкой эмодзи и цитирования"""
+    """Markdown парсер с поддержкой эмодзи и цитирования"""
     def __init__(self):
         pass
 
     def parse(self, text):
-        # Обрабатываем цитирование перед другими преобразованиями
-        text = self._convert_quotes_to_html(text)
+        # Сначала обрабатываем Markdown-синтаксис
+        text = self._convert_quotes_to_markdown(text)
         text = self._convert_html_emoji_to_markdown(text)
         
+        # Парсим Markdown
         text, entities = markdown.parse(text)
         new_entities = []
         
+        # Обрабатываем сущности
         for entity in entities:
             if isinstance(entity, types.MessageEntityTextUrl):
                 if entity.url == 'spoiler':
@@ -44,7 +46,7 @@ class CustomParseMode:
                         logger.warning(f"Невалидный ID эмодзи: {entity.url}")
                         new_entities.append(entity)
                 elif entity.url == 'quote':
-                    # Создаем кастомную сущность для цитирования
+                    # Создаем сущность для цитирования
                     new_entities.append(types.MessageEntityBlockquote(
                         offset=entity.offset,
                         length=entity.length
@@ -91,32 +93,36 @@ class CustomParseMode:
             flags=re.DOTALL
         )
 
-    def _convert_quotes_to_html(self, text):
-        """Конвертируем символы цитирования в HTML-формат"""
+    def _convert_quotes_to_markdown(self, text):
+        """Конвертируем символы цитирования в Markdown-формат"""
         # Обрабатываем многострочные цитаты
         lines = text.split('\n')
         in_quote = False
         result_lines = []
         
         for line in lines:
-            if line.startswith('> '):
+            stripped_line = line.strip()
+            
+            if stripped_line.startswith('>'):
                 if not in_quote:
-                    result_lines.append('<blockquote>')
+                    # Начало новой цитаты
                     in_quote = True
-                result_lines.append(line[2:])
+                    result_lines.append('> ' + stripped_line[1:].strip())
+                else:
+                    # Продолжение цитаты
+                    result_lines.append('> ' + stripped_line[1:].strip())
             else:
-                if in_quote:
-                    result_lines.append('</blockquote>')
+                if in_quote and stripped_line:
+                    # Конец цитаты
                     in_quote = False
-                result_lines.append(line)
-        
-        if in_quote:
-            result_lines.append('</blockquote>')
+                    result_lines.append(line)
+                else:
+                    result_lines.append(line)
         
         return '\n'.join(result_lines)
 
 class EmojiHandler:
-    """Обработчик премиум-эмодзи и цитирования"""
+    """Обработчик премиум-эмодзи"""
     @staticmethod
     async def process_message(event):
         try:

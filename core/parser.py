@@ -13,11 +13,13 @@ from telethon.errors.rpcerrorlist import MessageNotModifiedError
 logger = logging.getLogger("UserBot.Parser")
 
 class CustomParseMode:
-    """Чистый Markdown парсер с поддержкой эмодзи"""
+    """Чистый Markdown парсер с поддержкой эмодзи и цитирования"""
     def __init__(self):
         pass
 
     def parse(self, text):
+        # Обрабатываем цитирование перед другими преобразованиями
+        text = self._convert_quotes_to_html(text)
         text = self._convert_html_emoji_to_markdown(text)
         
         text, entities = markdown.parse(text)
@@ -41,6 +43,12 @@ class CustomParseMode:
                     except (ValueError, IndexError):
                         logger.warning(f"Невалидный ID эмодзи: {entity.url}")
                         new_entities.append(entity)
+                elif entity.url == 'quote':
+                    # Создаем кастомную сущность для цитирования
+                    new_entities.append(types.MessageEntityBlockquote(
+                        offset=entity.offset,
+                        length=entity.length
+                    ))
                 else:
                     new_entities.append(entity)
             else:
@@ -63,6 +71,12 @@ class CustomParseMode:
                     length=entity.length,
                     url='spoiler'
                 ))
+            elif isinstance(entity, types.MessageEntityBlockquote):
+                converted_entities.append(types.MessageEntityTextUrl(
+                    offset=entity.offset,
+                    length=entity.length,
+                    url='quote'
+                ))
             else:
                 converted_entities.append(entity)
         
@@ -77,15 +91,39 @@ class CustomParseMode:
             flags=re.DOTALL
         )
 
+    def _convert_quotes_to_html(self, text):
+        """Конвертируем символы цитирования в HTML-формат"""
+        # Обрабатываем многострочные цитаты
+        lines = text.split('\n')
+        in_quote = False
+        result_lines = []
+        
+        for line in lines:
+            if line.startswith('> '):
+                if not in_quote:
+                    result_lines.append('<blockquote>')
+                    in_quote = True
+                result_lines.append(line[2:])
+            else:
+                if in_quote:
+                    result_lines.append('</blockquote>')
+                    in_quote = False
+                result_lines.append(line)
+        
+        if in_quote:
+            result_lines.append('</blockquote>')
+        
+        return '\n'.join(result_lines)
+
 class EmojiHandler:
-    """Обработчик премиум-эмодзи"""
+    """Обработчик премиум-эмодзи и цитирования"""
     @staticmethod
     async def process_message(event):
         try:
             if not event.text or event.text.startswith('.'):
                 return
                 
-            if '](emoji/' not in event.text and '<emoji' not in event.text:
+            if '](emoji/' not in event.text and '<emoji' not in event.text and '> ' not in event.text:
                 return
                 
             await event.edit(event.text)

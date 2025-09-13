@@ -50,7 +50,7 @@ class HuekkaModule:
         
         base_dir = Path(__file__).resolve().parent.parent
         
-        self.image_path = base_dir / "asset" / "image" / "huekka.png"
+        self.image_path = base_dir / "asset" / "image" / "huekka.jpg"
         self.clock_emoji_id = BotConfig.EMOJI_IDS["clock"]
         
         # Регистрируем все команды из MODULE_INFO

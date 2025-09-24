@@ -7,7 +7,7 @@
 import logging
 import re
 from telethon import types
-from telethon.extensions import html # Изменено на html
+from telethon.extensions import html
 from telethon.errors.rpcerrorlist import MessageNotModifiedError
 
 logger = logging.getLogger("UserBot.Parser")

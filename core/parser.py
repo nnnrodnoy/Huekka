@@ -13,7 +13,7 @@ from telethon.errors.rpcerrorlist import MessageNotModifiedError
 logger = logging.getLogger("UserBot.Parser")
 
 class CustomParseMode:
-    """HTML парсер с поддержкой кастомных эмодзи"""
+    """HTML парсер, полностью совместимый с Markdown функционалом"""
     def __init__(self):
         pass
 
@@ -21,13 +21,36 @@ class CustomParseMode:
         if not text:
             return "", []
 
-        # Сначала обрабатываем кастомные эмодзи в формате [текст](emoji/id)
-        emoji_list = []
+        # Сохраняем оригинальный текст для отладки
+        original_text = text
         
-        # Паттерн для поиска кастомных эмодзи в формате [текст](emoji/id)
+        # Паттерны для Markdown-подобных элементов, которые нужно преобразовать в HTML
+        # 1. Жирный текст: **текст** -> <b>текст</b>
+        text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', text, flags=re.DOTALL)
+        
+        # 2. Курсив: __текст__ -> <i>текст</i>
+        text = re.sub(r'__(.*?)__', r'<i>\1</i>', text, flags=re.DOTALL)
+        
+        # 3. Подчеркивание: --текст-- -> <u>текст</u>  
+        text = re.sub(r'--(.*?)--', r'<u>\1</u>', text, flags=re.DOTALL)
+        
+        # 4. Зачеркивание: ~~текст~~ -> <s>текст</s>
+        text = re.sub(r'~~(.*?)~~', r'<s>\1</s>', text, flags=re.DOTALL)
+        
+        # 5. Моноширинный: `текст` -> <code>текст</code>
+        text = re.sub(r'`(.*?)`', r'<code>\1</code>', text, flags=re.DOTALL)
+        
+        # 6. Преформатированный: ```текст``` -> <pre>текст</pre>
+        text = re.sub(r'```(.*?)```', r'<pre>\1</pre>', text, flags=re.DOTALL)
+        
+        # 7. Ссылки: [текст](url) -> <a href="url">текст</a>
+        text = re.sub(r'\[(.*?)\]\((.*?)\)', r'<a href="\2">\1</a>', text, flags=re.DOTALL)
+
+        # 8. Кастомные эмодзи: [текст](emoji/id) - оставляем как есть для последующей обработки
+        # Сначала извлекаем все кастомные эмодзи
+        emoji_list = []
         emoji_pattern = re.compile(r'\[(.*?)\]\(emoji/(\d+)\)', re.DOTALL)
         
-        # Заменяем эмодзи на временные плейсхолдеры
         def emoji_replacer(match):
             inner_text = match.group(1)
             doc_id = match.group(2)
@@ -37,13 +60,17 @@ class CustomParseMode:
 
         text = emoji_pattern.sub(emoji_replacer, text)
 
-        # Парсим HTML разметку (<b>, <i>, <u>, <code> и т.д.)
-        text, entities = html.parse(text)
-        
-        if entities is None:
-            entities = []
+        # Парсим HTML
+        try:
+            text, entities = html.parse(text)
+            if entities is None:
+                entities = []
+        except Exception as e:
+            logger.error(f"Ошибка HTML парсинга: {e}")
+            # Если парсинг не удался, возвращаем оригинальный текст
+            return original_text, []
 
-        # Восстанавливаем эмодзи из плейсхолдеров
+        # Восстанавливаем кастомные эмодзи
         for index, (doc_id, inner_text) in enumerate(emoji_list):
             placeholder = f"%%EMOJI_{index}%%"
             if placeholder in text:
@@ -68,31 +95,38 @@ class CustomParseMode:
         if not text:
             return ""
 
-        # Разделяем сущности на обычные HTML и кастомные эмодзи
-        html_entities = []
-        emoji_entities = []
+        # Сначала преобразуем HTML сущности обратно в текст с помощью стандартного unparse
+        try:
+            result = html.unparse(text, entities)
+        except Exception as e:
+            logger.error(f"Ошибка HTML unparse: {e}")
+            return text
 
-        for entity in entities:
-            if isinstance(entity, types.MessageEntityCustomEmoji):
-                emoji_entities.append(entity)
-            else:
-                html_entities.append(entity)
-
-        # Сначала обрабатываем HTML разметку
-        text = html.unparse(text, html_entities or None)
-
-        # Затем обрабатываем кастомные эмодзи (с конца, чтобы не сбивать offsets)
-        emoji_entities.sort(key=lambda e: e.offset, reverse=True)
+        # Теперь преобразуем HTML теги обратно в Markdown-подобный синтаксис
+        # для совместимости с существующим кодом
         
-        for entity in emoji_entities:
-            start = entity.offset
-            end = start + entity.length
-            inner_text = text[start:end]
-            # Преобразуем обратно в формат [текст](emoji/id)
-            tag = f'[{inner_text}](emoji/{entity.document_id})'
-            text = text[:start] + tag + text[end:]
+        # 1. <b>текст</b> -> **текст**
+        result = re.sub(r'<b>(.*?)</b>', r'**\1**', result, flags=re.DOTALL)
+        
+        # 2. <i>текст</i> -> __текст__
+        result = re.sub(r'<i>(.*?)</i>', r'__\1__', result, flags=re.DOTALL)
+        
+        # 3. <u>текст</u> -> --текст--
+        result = re.sub(r'<u>(.*?)</u>', r'--\1--', result, flags=re.DOTALL)
+        
+        # 4. <s>текст</s> -> ~~текст~~
+        result = re.sub(r'<s>(.*?)</s>', r'~~\1~~', result, flags=re.DOTALL)
+        
+        # 5. <code>текст</code> -> `текст`
+        result = re.sub(r'<code>(.*?)</code>', r'`\1`', result, flags=re.DOTALL)
+        
+        # 6. <pre>текст</pre> -> ```текст```
+        result = re.sub(r'<pre>(.*?)</pre>', r'```\1```', result, flags=re.DOTALL)
+        
+        # 7. <a href="url">текст</a> -> [текст](url)
+        result = re.sub(r'<a href="(.*?)">(.*?)</a>', r'[\2](\1)', result, flags=re.DOTALL)
 
-        return text
+        return result
 
 class EmojiHandler:
     """Обработчик премиум-эмодзи"""

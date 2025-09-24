@@ -21,7 +21,7 @@ import hashlib
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 from telethon.tl.functions.channels import JoinChannelRequest
-from core.parser import CustomParseMode, EmojiHandler
+from core.parser import CustomParseMode, EmojiHandler  # Удаляем импорт HTMLParser
 from core.log import setup_logging
 from config import BotConfig
 from core.autocleaner import AutoCleaner
@@ -137,6 +137,7 @@ class UserBot:
             self.api_hash
         )
         
+        # Используем только CustomParseMode (Markdown)
         self.client.parse_mode = CustomParseMode()
     
     async def start(self):

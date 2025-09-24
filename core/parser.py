@@ -18,6 +18,10 @@ class CustomParseMode:
         pass
 
     def parse(self, text):
+        # Если текст пустой, возвращаем пустые значения
+        if not text:
+            return "", []
+            
         # Списки для хранения данных о кастомных эмодзи и спойлерах
         emoji_list = []
         spoiler_list = []
@@ -47,6 +51,10 @@ class CustomParseMode:
 
         # Парсим HTML
         text, entities = html.parse(text)
+        
+        # Гарантируем, что entities является списком
+        if entities is None:
+            entities = []
 
         # Восстанавливаем эмодзи
         for index, (doc_id, inner_text) in enumerate(emoji_list):
@@ -73,12 +81,21 @@ class CustomParseMode:
                 )
                 entities.append(entity)
 
-        # Сортируем сущности по offset
-        entities.sort(key=lambda e: e.offset)
+        # Сортируем сущности по offset (только если есть сущности)
+        if entities:
+            entities.sort(key=lambda e: e.offset)
 
         return text, entities
 
     def unparse(self, text, entities):
+        # Гарантируем, что entities является списком
+        if entities is None:
+            entities = []
+            
+        # Если текст пустой, возвращаем пустую строку
+        if not text:
+            return ""
+
         # Разделяем сущности на обычные и кастомные
         normal_entities = []
         custom_emoji_entities = []
@@ -93,7 +110,7 @@ class CustomParseMode:
                 normal_entities.append(entity)
 
         # Используем стандартный HTML unparse для обычных сущностей
-        text = html.unparse(text, normal_entities)
+        text = html.unparse(text, normal_entities or None)
 
         # Обрабатываем кастомные эмодзи и спойлеры с конца, чтобы не сбивать offsets
         custom_emoji_entities.sort(key=lambda e: e.offset, reverse=True)
@@ -120,7 +137,8 @@ class EmojiHandler:
     @staticmethod
     async def process_message(event):
         try:
-            if not event.text or event.text.startswith('.'):
+            # Безопасная проверка текста сообщения
+            if not hasattr(event, 'text') or not event.text or event.text.startswith('.'):
                 return
                 
             # Проверяем наличие эмодзи в тексте

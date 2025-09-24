@@ -26,14 +26,14 @@ class CustomParseMode:
         emoji_list = []
         spoiler_list = []
 
-        # Паттерны для поиска кастомных эмодзи и спойлеров
-        emoji_pattern = re.compile(r'<emoji\s+document_id\s*=\s*["\']?(\d+)["\']?\s*>(.*?)</emoji>', re.DOTALL)
+        # Паттерны для поиска кастомных эмодзи в Markdown формате [текст](emoji/id)
+        emoji_pattern = re.compile(r'\[(.*?)\]\(emoji/(\d+)\)', re.DOTALL)
         spoiler_pattern = re.compile(r'<spoiler>(.*?)</spoiler>', re.DOTALL)
 
-        # Заменяем эмодзи на плейсхолдеры
+        # Заменяем Markdown эмодзи на плейсхолдеры
         def emoji_replacer(match):
-            doc_id = match.group(1)
-            inner_text = match.group(2)
+            inner_text = match.group(1)
+            doc_id = match.group(2)
             index = len(emoji_list)
             emoji_list.append((doc_id, inner_text))
             return f"%%EMOJI_{index}%%"
@@ -49,7 +49,7 @@ class CustomParseMode:
 
         text = spoiler_pattern.sub(spoiler_replacer, text)
 
-        # Парсим HTML
+        # Парсим HTML (обрабатывает <b>, <i>, <u>, <code> и т.д.)
         text, entities = html.parse(text)
         
         # Гарантируем, что entities является списком
@@ -110,19 +110,23 @@ class CustomParseMode:
                 normal_entities.append(entity)
 
         # Используем стандартный HTML unparse для обычных сущностей
+        # Это преобразует сущности обратно в HTML теги (<b>, <i> и т.д.)
         text = html.unparse(text, normal_entities or None)
 
         # Обрабатываем кастомные эмодзи и спойлеры с конца, чтобы не сбивать offsets
         custom_emoji_entities.sort(key=lambda e: e.offset, reverse=True)
         spoiler_entities.sort(key=lambda e: e.offset, reverse=True)
 
+        # Восстанавливаем эмодзи в Markdown формате [текст](emoji/id)
         for entity in custom_emoji_entities:
             start = entity.offset
             end = start + entity.length
             inner_text = text[start:end]
-            tag = f'<emoji document_id="{entity.document_id}">{inner_text}</emoji>'
+            # Используем Markdown формат для эмодзи
+            tag = f'[{inner_text}](emoji/{entity.document_id})'
             text = text[:start] + tag + text[end:]
 
+        # Восстанавливаем спойлеры в HTML формате
         for entity in spoiler_entities:
             start = entity.offset
             end = start + entity.length
@@ -141,8 +145,8 @@ class EmojiHandler:
             if not hasattr(event, 'text') or not event.text or event.text.startswith('.'):
                 return
                 
-            # Проверяем наличие эмодзи в тексте
-            if '<emoji' not in event.text:
+            # Проверяем наличие эмодзи в тексте (Markdown формат)
+            if '](emoji/' not in event.text:
                 return
                 
             # Редактируем сообщение для активации эмодзи

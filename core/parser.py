@@ -13,7 +13,7 @@ from telethon.errors.rpcerrorlist import MessageNotModifiedError
 logger = logging.getLogger("UserBot.Parser")
 
 class CustomParseMode:
-    """Чистый HTML парсер с поддержкой кастомных эмодзи и спойлеров"""
+    """HTML парсер с поддержкой кастомных эмодзи"""
     def __init__(self):
         pass
 
@@ -21,58 +21,46 @@ class CustomParseMode:
         if not text:
             return "", []
 
-        # 1. Заменяем кастомные теги <spoiler>текст</spoiler> на Markdown-подобный TextUrl
-        # Это нужно, чтобы Telethon не пытался их парсить как обычный HTML, а
-        # затем мы преобразуем TextUrl в MessageEntitySpoiler
-        text = re.sub(
-            r'<spoiler>(.*?)</spoiler>',
-            r'[\1](spoiler)',
-            text,
-            flags=re.DOTALL
-        )
+        # Сначала обрабатываем кастомные эмодзи в формате [текст](emoji/id)
+        emoji_list = []
         
-        # 2. Парсим текст. html.parse обработает ВСЕ:
-        #    - HTML теги (<b>, <i>, <u>) в Telethon сущности.
-        #    - Кастомные эмодзи вида [текст](emoji/id) в MessageEntityTextUrl.
-        #    - Кастомные спойлеры вида [текст](spoiler) в MessageEntityTextUrl.
+        # Паттерн для поиска кастомных эмодзи в формате [текст](emoji/id)
+        emoji_pattern = re.compile(r'\[(.*?)\]\(emoji/(\d+)\)', re.DOTALL)
+        
+        # Заменяем эмодзи на временные плейсхолдеры
+        def emoji_replacer(match):
+            inner_text = match.group(1)
+            doc_id = match.group(2)
+            index = len(emoji_list)
+            emoji_list.append((doc_id, inner_text))
+            return f"%%EMOJI_{index}%%"
+
+        text = emoji_pattern.sub(emoji_replacer, text)
+
+        # Парсим HTML разметку (<b>, <i>, <u>, <code> и т.д.)
         text, entities = html.parse(text)
         
         if entities is None:
             entities = []
 
-        # 3. Преобразуем MessageEntityTextUrl обратно в MessageEntityCustomEmoji и MessageEntitySpoiler
-        new_entities = []
-        for entity in entities:
-            if isinstance(entity, types.MessageEntityTextUrl):
-                url = entity.url.lower()
-                
-                if url == 'spoiler':
-                    # Преобразование в MessageEntitySpoiler
-                    new_entities.append(types.MessageEntitySpoiler(
-                        offset=entity.offset,
-                        length=entity.length
-                    ))
-                elif url.startswith('emoji/'):
-                    try:
-                        doc_id = int(url.split('/')[1])
-                        # Преобразование в MessageEntityCustomEmoji
-                        new_entities.append(types.MessageEntityCustomEmoji(
-                            offset=entity.offset,
-                            length=entity.length,
-                            document_id=doc_id
-                        ))
-                    except (ValueError, IndexError):
-                        logger.warning(f"Невалидный ID эмодзи: {entity.url}")
-                        new_entities.append(entity)
-                else:
-                    new_entities.append(entity)
-            else:
-                new_entities.append(entity)
+        # Восстанавливаем эмодзи из плейсхолдеров
+        for index, (doc_id, inner_text) in enumerate(emoji_list):
+            placeholder = f"%%EMOJI_{index}%%"
+            if placeholder in text:
+                start = text.find(placeholder)
+                text = text.replace(placeholder, inner_text, 1)
+                entity = types.MessageEntityCustomEmoji(
+                    offset=start,
+                    length=len(inner_text),
+                    document_id=int(doc_id)
+                )
+                entities.append(entity)
 
         # Сортируем сущности по offset
-        new_entities.sort(key=lambda e: e.offset)
+        if entities:
+            entities.sort(key=lambda e: e.offset)
         
-        return text, new_entities
+        return text, entities
 
     def unparse(self, text, entities):
         if entities is None:
@@ -80,39 +68,41 @@ class CustomParseMode:
         if not text:
             return ""
 
-        # Создаем временные TextUrl сущности из CustomEmoji/Spoiler
-        converted_entities = []
+        # Разделяем сущности на обычные HTML и кастомные эмодзи
+        html_entities = []
+        emoji_entities = []
+
         for entity in entities:
             if isinstance(entity, types.MessageEntityCustomEmoji):
-                converted_entities.append(types.MessageEntityTextUrl(
-                    offset=entity.offset,
-                    length=entity.length,
-                    url=f'emoji/{entity.document_id}' # Сохраняем Markdown-подобный формат
-                ))
-            elif isinstance(entity, types.MessageEntitySpoiler):
-                converted_entities.append(types.MessageEntityTextUrl(
-                    offset=entity.offset,
-                    length=entity.length,
-                    url='spoiler' # Сохраняем Markdown-подобный формат
-                ))
+                emoji_entities.append(entity)
             else:
-                converted_entities.append(entity)
+                html_entities.append(entity)
+
+        # Сначала обрабатываем HTML разметку
+        text = html.unparse(text, html_entities or None)
+
+        # Затем обрабатываем кастомные эмодзи (с конца, чтобы не сбивать offsets)
+        emoji_entities.sort(key=lambda e: e.offset, reverse=True)
         
-        # Используем html.unparse. Он преобразует:
-        # 1. Обычные сущности в HTML теги (<b>, <i>).
-        # 2. Временные TextUrl (эмодзи/спойлеры) в Markdown-подобный синтаксис ([текст](url)).
-        # Возвращаемый текст будет в HTML, но эмодзи и спойлеры будут в Markdown-подобном формате.
-        return html.unparse(text, converted_entities)
+        for entity in emoji_entities:
+            start = entity.offset
+            end = start + entity.length
+            inner_text = text[start:end]
+            # Преобразуем обратно в формат [текст](emoji/id)
+            tag = f'[{inner_text}](emoji/{entity.document_id})'
+            text = text[:start] + tag + text[end:]
+
+        return text
 
 class EmojiHandler:
-    """Обработчик премиум-эмодзи. Вызывает edit() для активации."""
+    """Обработчик премиум-эмодзи"""
     @staticmethod
     async def process_message(event):
         try:
             if not hasattr(event, 'text') or not event.text or event.text.startswith('.'):
                 return
                 
-            # Проверяем наличие Markdown-подобного формата эмодзи
+            # Проверяем наличие эмодзи в формате [текст](emoji/id)
             if '](emoji/' not in event.text:
                 return
                 

@@ -7,20 +7,23 @@
 import logging
 import re
 from telethon import types
-from telethon.extensions import markdown
+from telethon.extensions import html # Изменено на html
 from telethon.errors.rpcerrorlist import MessageNotModifiedError
 
 logger = logging.getLogger("UserBot.Parser")
 
 class CustomParseMode:
-    """Чистый Markdown парсер с поддержкой эмодзи"""
+    """Чистый HTML парсер с поддержкой эмодзи"""
     def __init__(self):
         pass
 
     def parse(self, text):
+        # Конвертируем HTML-эмодзи в Markdown-формат, чтобы затем
+        # обработать их как MessageEntityTextUrl
         text = self._convert_html_emoji_to_markdown(text)
         
-        text, entities = markdown.parse(text)
+        # Используем html.parse вместо markdown.parse
+        text, entities = html.parse(text)
         new_entities = []
         
         for entity in entities:
@@ -66,7 +69,8 @@ class CustomParseMode:
             else:
                 converted_entities.append(entity)
         
-        return markdown.unparse(text, converted_entities)
+        # Используем html.unparse вместо markdown.unparse
+        return html.unparse(text, converted_entities)
 
     def _convert_html_emoji_to_markdown(self, text):
         """Конвертируем HTML-эмодзи в Markdown-формат"""

@@ -1,4 +1,4 @@
-# ©️ nnnrodnoy, 2025 ладалалада
+# ©️ nnnrodnoy, 2025
 # 💬 @nnnrodnoy
 # This file is part of Huekka
 # 🌐 https://github.com/nnnrodnoy/Huekka/
@@ -7,24 +7,20 @@
 import logging
 import re
 from telethon import types
-# ИСПРАВЛЕНИЕ: Заменяем markdown на html
-from telethon.extensions import html 
+from telethon.extensions import markdown
 from telethon.errors.rpcerrorlist import MessageNotModifiedError
 
 logger = logging.getLogger("UserBot.Parser")
 
-class CustomHtmlParser:
-    """
-    Чистый HTML парсер с поддержкой кастомных эмодзи
-    
-    Поддерживает: <a href="emoji/ID">Text</a> и <a href="spoiler">Text</a>
-    """
+class CustomParseMode:
+    """Чистый Markdown парсер с поддержкой эмодзи"""
     def __init__(self):
         pass
 
     def parse(self, text):
-        # ИСПРАВЛЕНИЕ: Используем html.parse
-        text, entities = html.parse(text)
+        text = self._convert_html_emoji_to_markdown(text)
+        
+        text, entities = markdown.parse(text)
         new_entities = []
         
         for entity in entities:
@@ -36,7 +32,6 @@ class CustomHtmlParser:
                     ))
                 elif entity.url.startswith('emoji/'):
                     try:
-                        # Логика обработки emoji/ID остается такой же, она верна
                         doc_id = int(entity.url.split('/')[1])
                         new_entities.append(types.MessageEntityCustomEmoji(
                             offset=entity.offset,
@@ -71,26 +66,28 @@ class CustomHtmlParser:
             else:
                 converted_entities.append(entity)
         
-        # ИСПРАВЛЕНИЕ: Используем html.unparse
-        return html.unparse(text, converted_entities)
+        return markdown.unparse(text, converted_entities)
 
-# УДАЛЕНИЕ: Метод _convert_html_emoji_to_markdown больше не нужен
+    def _convert_html_emoji_to_markdown(self, text):
+        """Конвертируем HTML-эмодзи в Markdown-формат"""
+        return re.sub(
+            r'<emoji\s+document_id\s*=\s*["\']?(\d+)["\']?\s*>(.*?)</emoji>',
+            r'[\2](emoji/\1)',
+            text,
+            flags=re.DOTALL
+        )
 
 class EmojiHandler:
-    """Обработчик премиум-эмодзи (логика остается неизменной)"""
+    """Обработчик премиум-эмодзи"""
     @staticmethod
     async def process_message(event):
         try:
-            # Учитываем синтаксис HTML: <a href="emoji/..."
             if not event.text or event.text.startswith('.'):
                 return
                 
-            if '](emoji/' not in event.text and '<a href="emoji/' not in event.text:
+            if '](emoji/' not in event.text and '<emoji' not in event.text:
                 return
                 
-            # Обратите внимание: event.edit() будет использовать парсер,
-            # который вы передадите в client.send_message или client.edit_message.
-            # Если парсер используется для команды, то он сработает здесь.
             await event.edit(event.text)
         except MessageNotModifiedError:
             pass

@@ -95,33 +95,33 @@ class MessageFormatters:
     def error(message: str, details: str = "") -> str:
         """Форматирование сообщения об ошибке"""
         if details:
-            return f"[🚫](emoji/5240241223632954241) **Ошибка:** {message}\n```{details}```"
-        return f"[🚫](emoji/5240241223632954241) **Ошибка:** {message}"
+            return f"<emoji document_id=5240241223632954241>🚫</emoji> <b>Ошибка:</b> {message}\n<code>{details}</code>"
+        return f"<emoji document_id=5240241223632954241>🚫</emoji> <b>Ошибка:</b> {message}"
     
     @staticmethod
     def warning(message: str) -> str:
         """Форматирование предупреждения"""
-        return f"⚠️ **Внимание:** {message}"
+        return f"⚠️ <b>Внимание:</b> {message}"
     
     @staticmethod
     def success(message: str) -> str:
         """Форматирование успешного выполнения"""
-        return f"[✅](emoji/5206607081334906820) **Успех:** {message}"
+        return f"<emoji document_id=5206607081334906820>✅</emoji> <b>Успех:</b> {message}"
     
     @staticmethod
     def info(message: str) -> str:
         """Форматирование информационного сообщения"""
-        return f"[ℹ️](emoji/5422439311196834318) **Информация:** {message}"
+        return f"<emoji document_id=5422439311196834318>ℹ️</emoji> <b>Информация:</b> {message}"
     
     @staticmethod
     def question(message: str) -> str:
         """Форматирование вопроса"""
-        return f"[❓](emoji/5436113877181941026) **Вопрос:** {message}"
+        return f"<emoji document_id=5436113877181941026>❓</emoji> <b>Вопрос:</b> {message}"
     
     @staticmethod
     def tip(message: str) -> str:
         """Форматирование подсказки"""
-        return f"[💡](emoji/5422439311196834318) **Подсказка:** {message}"
+        return f"<emoji document_id=5422439311196834318>💡</emoji> <b>Подсказка:</b> {message}"
 
 class ModuleInfoFormatters:
     """Универсальные форматеры информации о модулях"""
@@ -133,27 +133,27 @@ class ModuleInfoFormatters:
         """Форматирование информации о модуле (универсальный)"""
         text = ""
         if is_premium:
-            text += f"[🕒](emoji/{total_emoji_id}) "
-        text += f"**{module_info['name']} (v{module_info['version']})**\n"
-        text += f"__{module_info['description']}__\n"
-        text += f"**__{random_smile}**__\n\n" 
+            text += f"<emoji document_id={total_emoji_id}>🕒</emoji> "
+        text += f"<b>{module_info['name']} (v{module_info['version']})</b>\n"
+        text += f"<i>{module_info['description']}</i>\n"
+        text += f"<b><i>{random_smile}</i></b>\n\n" 
                               
         for cmd in module_info['commands']:
             if is_premium:
                 if module_info.get('is_stock', False):
-                    text += f"[▪️](emoji/{stock_emoji_id}) "
+                    text += f"<emoji document_id={stock_emoji_id}>▪️</emoji> "
                 else:
-                    text += f"[▫️](emoji/{custom_emoji_id}) "
+                    text += f"<emoji document_id={custom_emoji_id}>▫️</emoji> "
             else:
                 text += "▪️ " if module_info.get('is_stock', False) else "▫️ "
             
-            text += f"`{prefix}{cmd['command']}` - __{cmd['description']}__\n"
+            text += f"<code>{prefix}{cmd['command']}</code> - <i>{cmd['description']}</i>\n"
         
         if is_premium:
-            text += f"\n[🫶](emoji/{developer_emoji_id}) "
+            text += f"\n<emoji document_id={developer_emoji_id}>🫶</emoji> "
         else:
             text += "\n🫶 "
-        text += f"**Разработчик:** {module_info['developer']}"
+        text += f"<b>Разработчик:</b> {module_info['developer']}"
         
         return text
 
@@ -163,28 +163,28 @@ class ModuleInfoFormatters:
         """Форматирование сообщения о загруженном модуле (универсальный)"""
         text = ""
         if is_premium:
-            text += f"[🌘](emoji/{loaded_emoji_id}) "
-        text += f"**{module_info['name']} загружен (v{module_info['version']})**\n"
+            text += f"<emoji document_id={loaded_emoji_id}>🌘</emoji> "
+        text += f"<b>{module_info['name']} загружен (v{module_info['version']})</b>\n"
         
         if module_info['description']:
-            text += f"__{module_info['description']}__\n"
+            text += f"<i>{module_info['description']}</i>\n"
             
-        text += f"**__{random_smile}**__\n\n"
+        text += f"<b><i>{random_smile}</i></b>\n\n"
         
         for cmd in module_info['commands']:
             if is_premium:
-                text += f"[▫️](emoji/{command_emoji_id}) "
+                text += f"<emoji document_id={command_emoji_id}>▫️</emoji> "
             else:
                 text += "▫️ "
                 
-            text += f"`{prefix}{cmd['command']}` - __{cmd['description']}__\n"
+            text += f"<code>{prefix}{cmd['command']}</code> - <i>{cmd['description']}</i>\n"
         
         text += "\n"
         if is_premium:
-            text += f"[🫶](emoji/{dev_emoji_id}) "
+            text += f"<emoji document_id={dev_emoji_id}>🫶</emoji> "
         else:
             text += "🫶 "
-        text += f"**Разработчик:** {module_info['developer']}"
+        text += f"<b>Разработчик:</b> {module_info['developer']}"
         
         return text
 
@@ -193,12 +193,12 @@ class ModuleInfoFormatters:
         """Форматирование сообщения об удалении модуля (универсальный)"""
         text = ""
         if is_premium:
-            text += f"[▪️](emoji/{info_emoji_id})"
+            text += f"<emoji document_id={info_emoji_id}>▪️</emoji>"
         else:
             text += "▪️"
         
-        text += f"**Модуль {module_name} успешно удален.**\n"
-        text += f"__(Используйте `{prefix}help` для просмотра модулей и команд.)__"
+        text += f"<b>Модуль {module_name} успешно удален.</b>\n"
+        text += f"<i>(Используйте <code>{prefix}help</code> для просмотра модулей и команд.)</i>"
         
         return text
 
@@ -223,19 +223,19 @@ class HelpFormatters:
         reply = ""
         
         if is_premium:
-            reply += f"[🕒](emoji/{total_emoji_id}) "
-        reply += f"**Доступно модулей:** {total_modules}\n"
-        reply += f"__Используйте `{prefix}help <команда>` для информации о команде__\n"
-        reply += f"__Или `{prefix}help <модуль>` для информации о модуле__\n\n"
+            reply += f"<emoji document_id={total_emoji_id}>🕒</emoji> "
+        reply += f"<b>Доступно модулей:</b> {total_modules}\n"
+        reply += f"<i>Используйте <code>{prefix}help &lt;команда&gt;</code> для информации о команде</i>\n"
+        reply += f"<i>Или <code>{prefix}help &lt;модуль&gt;</code> для информации о модуле</i>\n\n"
         
         if is_premium:
-            reply += f"[👁️](emoji/{section_emoji_id}) "
-        reply += "**Стандартные модули:**\n"
+            reply += f"<emoji document_id={section_emoji_id}>👁️</emoji> "
+        reply += "<b>Стандартные модули:</b>\n"
         reply += "\n".join(stock_list) + "\n\n"
         
         if is_premium:
-            reply += f"[👁️](emoji/{section_emoji_id}) "
-        reply += "**Пользовательские модули:**\n"
+            reply += f"<emoji document_id={section_emoji_id}>👁️</emoji> "
+        reply += "<b>Пользовательские модули:</b>\n"
         reply += "\n".join(custom_list)
         
         return reply

@@ -81,9 +81,9 @@ class SystemModule:
             await asyncio.sleep(3)
             
             if restart_data["is_premium"]:
-                text_msg = f"[⚙️](emoji/{self.restart_emoji_id}) **Huekka успешно перезагружен!**"
+                text_msg = f"<emoji document_id={self.restart_emoji_id}>⚙️</emoji> <b>Huekka успешно перезагружен!</b>"
             else:
-                text_msg = "⚙️ **Huekka успешно перезагрушен!**"
+                text_msg = "⚙️ <b>Huekka успешно перезагрушен!</b>"
             
             msg_obj = await self.bot.client.edit_message(
                 entity=restart_data["chat_id"],
@@ -124,9 +124,9 @@ class SystemModule:
                 json.dump(restart_data, f)
             
             if is_premium:
-                msg_obj = await event.edit(f"[⚙️](emoji/{self.restart_emoji_id}) **Перезагрузка Huekka...**")
+                msg_obj = await event.edit(f"<emoji document_id={self.restart_emoji_id}>⚙️</emoji> <b>Перезагрузка Huekka...</b>")
             else:
-                msg_obj = await event.edit("⚙️ **Перезагрузка Huekka...**")
+                msg_obj = await event.edit("⚙️ <b>Перезагрузка Huekka...</b>")
             
             await self.add_to_autoclean(msg_obj)
             

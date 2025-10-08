@@ -224,7 +224,7 @@ class LoaderModule:
         try:
             while True:
                 frame = animation[i % len(animation)]
-                prefix = f"[⌛️](emoji/{self.loader_emoji_id}) " if is_premium else "⌛️ "
+                prefix = f"<emoji document_id={self.loader_emoji_id}>⌛️</emoji> " if is_premium else "⌛️ "
                 await event.edit(f"{prefix}{message} {frame}")
                 i += 1
                 await asyncio.sleep(0.3)
@@ -253,7 +253,7 @@ class LoaderModule:
             )
         except Exception as e:
             logger.error(f"Ошибка установки зависимостей: {str(e)}")
-            await event.edit(f"[❌](emoji/5210952531676504517) {str(e)}")
+            await event.edit(f"<emoji document_id=5210952531676504517>❌</emoji> {str(e)}")
             return False
 
     async def unload_existing_module(self, module_name):
@@ -305,12 +305,12 @@ class LoaderModule:
 
     async def load_module(self, event):
         if not event.is_reply:
-            await event.edit("[ℹ️](emoji/5422439311196834318) **Ответьте на сообщение с файлом модуля!**")
+            await event.edit("<emoji document_id=5422439311196834318>ℹ️</emoji> <b>Ответьте на сообщение с файлом модуля!</b>")
             return
 
         reply = await event.get_reply_message()
         if not reply.document or not reply.document.mime_type == "text/x-python":
-            await event.edit("[🚫](emoji/5240241223632954241) **Это не Python-файл!**")
+            await event.edit("<emoji document_id=5240241223632954241>🚫</emoji> <b>Это не Python-файл!</b>")
             return
 
         user_info = await self.get_user_info(event)
@@ -323,18 +323,18 @@ class LoaderModule:
                 break
         
         if not file_name:
-            await event.edit("[🚫](emoji/5240241223632954241) **Не удалось определить имя файла!**")
+            await event.edit("<emoji document_id=5240241223632954241>🚫</emoji> <b>Не удалось определить имя файла!</b>")
             return
 
         module_name = os.path.basename(file_name).replace(".py", "")
         
         # Проверяем, не является ли модуль системным
         if module_name in self.bot.core_modules:
-            await event.edit("[🚫](emoji/5240241223632954241) **Нельзя перезаписать системный модуль!**")
+            await event.edit("<emoji document_id=5240241223632954241>🚫</emoji> <b>Нельзя перезаписать системный модуль!</b>")
             return
 
         # Показываем начальное сообщение о загрузке
-        await event.edit(f"[⌛️](emoji/{self.loader_emoji_id}) **Загружаю** `{module_name}` **...**")
+        await event.edit(f"<emoji document_id={self.loader_emoji_id}>⌛️</emoji> <b>Загружаю</b> <code>{module_name}</code> <b>...</b>")
         
         temp_dir = Path("temp_modules")
         temp_dir.mkdir(exist_ok=True)
@@ -354,7 +354,7 @@ class LoaderModule:
             await self.unload_existing_module(module_name)
             
             # Показываем сообщение о запуске
-            await event.edit(f"[⌛️](emoji/{self.loader_emoji_id}) **Запускаю ...**")
+            await event.edit(f"<emoji document_id={self.loader_emoji_id}>⌛️</emoji> <b>Запускаю ...</b>")
             
             # Загружаем модуль с анимацией
             async def load_module_task():
@@ -481,7 +481,7 @@ class LoaderModule:
         
         args = event.text.split()
         if len(args) < 2:
-            await event.edit(f"ℹ️ **Укажите название модуля:** `{prefix}ulm ModuleName`")
+            await event.edit(f"ℹ️ <b>Укажите название модуля:</b> <code>{prefix}ulm ModuleName</code>")
             return
 
         module_query = " ".join(args[1:]).strip()
@@ -504,7 +504,7 @@ class LoaderModule:
                 module_path = found_file
 
         if not found_name:
-            error_msg = msg.error(f"Модуль `{module_query}` не найден")
+            error_msg = msg.error(f"Модуль <code>{module_query}</code> не найден")
             await event.edit(error_msg)
             return
 
@@ -521,12 +521,12 @@ class LoaderModule:
                 module_path = self.find_module_file(found_name)
 
         if not module_path or not module_path.exists():
-            error_msg = msg.error(f"Файл модуля `{found_name}` не найден")
+            error_msg = msg.error(f"Файл модуля <code>{found_name}</code> не найден")
             await event.edit(error_msg)
             return
 
         if found_name in self.bot.core_modules:
-            error_msg = msg.error(f"Модуль `{found_name}` является системным и не может быть выгружен")
+            error_msg = msg.error(f"Модуль <code>{found_name}</code> является системным и не может быть выгружен")
             await event.edit(error_msg)
             return
 
@@ -534,7 +534,7 @@ class LoaderModule:
         is_premium = user_info["premium"]
 
         # Показываем начальное сообщение об удалении
-        await event.edit(f"[⌛️](emoji/{self.loader_emoji_id}) **Удаляю** `{found_name}` **...**")
+        await event.edit(f"<emoji document_id={self.loader_emoji_id}>⌛️</emoji> <b>Удаляю</b> <code>{found_name}</code> <b>...</b>")
         await asyncio.sleep(1)  # Небольшая пауза для визуального эффекта
 
         # Используем анимацию для выгрузки модуля
@@ -570,17 +570,17 @@ class LoaderModule:
             
             # Используем форматтер для сообщения об удалении
             if is_premium:
-                return f"[▪️](emoji/{self.info_emoji_id}) `{found_name}` __успешно удалён, используйте__ `{prefix}help` __для просмотра модулей и команд.__"
+                return f"<emoji document_id={self.info_emoji_id}>▪️</emoji> <code>{found_name}</code> <i>успешно удалён, используйте</i> <code>{prefix}help</code> <i>для просмотра модулей и команд.</i>"
             else:
-                return f"▪️ `{found_name}` __успешно удалён, используйте__ `{prefix}help` __для просмотра модулей и команд.__"
+                return f"▪️ <code>{found_name}</code> <i>успешно удалён, используйте</i> <code>{prefix}help</code> <i>для просмотра модулей и команд.</i>"
 
         try:
             # Показываем сообщение о запуске
-            await event.edit(f"[⌛️](emoji/{self.loader_emoji_id}) **Запускаю ...**")
+            await event.edit(f"<emoji document_id={self.loader_emoji_id}>⌛️</emoji> <b>Запускаю ...</b>")
             
             # Запускаем выгрузку модуля с анимацией
             unloaded_message = await self.animate_loading_until_done(
-                event, "**Запускаю ...**", is_premium, unload_module_task()
+                event, "<b>Запускаю ...</b>", is_premium, unload_module_task()
             )
             
             await event.edit(unloaded_message)

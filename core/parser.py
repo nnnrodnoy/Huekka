@@ -123,6 +123,11 @@ class EmojiHandler:
         parser = CustomHtmlParser()
         return parser._convert_emoji_markers_to_html(text)
 
+    @staticmethod
+    def has_emoji_markers(text):
+        """Проверяет, содержит ли текст эмодзи-маркеры"""
+        return text and '<emoji document_id=' in text
+
     @classmethod
     async def process_command_output(cls, text):
         """Обработка вывода команд для HTML формата"""

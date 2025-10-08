@@ -68,45 +68,45 @@ class ConfiguratorModule:
         prefix = self.bot.command_prefix
         
         help_text = f"""
-[⚙️](emoji/5370932688993656500) **Управление настройками бота**
+<emoji document_id=5370932688993656500>⚙️</emoji> <b>Управление настройками бота</b>
 
-**Использование:**
- [▪️](emoji/5251522431977291010)`{prefix}config prefix` `<новый префикс>` - __Изменить префикс команд__
- [▪️](emoji/5251522431977291010)`{prefix}config autoclean` `<on/off>` - __Включить/выключить автоклинер__
- [▪️](emoji/5251522431977291010)`{prefix}config autoclean_delay` `<секунды>` - __Установить задержку автоклинера__
- [▪️](emoji/5251522431977291010)`{prefix}config autostart` `<on/off>` - __Включить/выключить автозапуск__
- [▪️](emoji/5251522431977291010)`{prefix}config status` - __Показать текущие настройки__
+<b>Использование:</b>
+ <emoji document_id=5251522431977291010>▪️</emoji><code>{prefix}config prefix</code> <code>&lt;новый префикс&gt;</code> - <i>Изменить префикс команд</i>
+ <emoji document_id=5251522431977291010>▪️</emoji><code>{prefix}config autoclean</code> <code>&lt;on/off&gt;</code> - <i>Включить/выключить автоклинер</i>
+ <emoji document_id=5251522431977291010>▪️</emoji><code>{prefix}config autoclean_delay</code> <code>&lt;секунды&gt;</code> - <i>Установить задержку автоклинера</i>
+ <emoji document_id=5251522431977291010>▪️</emoji><code>{prefix}config autostart</code> <code>&lt;on/off&gt;</code> - <i>Включить/выключить автозапуск</i>
+ <emoji document_id=5251522431977291010>▪️</emoji><code>{prefix}config status</code> - <i>Показать текущие настройки</i>
 
-**Примеры:**
-[▫️](emoji/5251481573953405172) `{prefix}config prefix !` - __Установить префикс "!"__
-[▫️](emoji/5251481573953405172) `{prefix}config autoclean on` - __Включить автоклинер__
-[▫️](emoji/5251481573953405172) `{prefix}config autoclean_delay 3600` - __Установить задержку 1 час__
-[▫️](emoji/5251481573953405172) `{prefix}config autostart on` - __Включить автозапуск__
+<b>Примеры:</b>
+<emoji document_id=5251481573953405172>▫️</emoji> <code>{prefix}config prefix !</code> - <i>Установить префикс "!"</i>
+<emoji document_id=5251481573953405172>▫️</emoji> <code>{prefix}config autoclean on</code> - <i>Включить автоклинер</i>
+<emoji document_id=5251481573953405172>▫️</emoji> <code>{prefix}config autoclean_delay 3600</code> - <i>Установить задержку 1 час</i>
+<emoji document_id=5251481573953405172>▫️</emoji> <code>{prefix}config autostart on</code> - <i>Включить автозапуск</i>
 """
         await event.edit(help_text)
 
     async def set_prefix(self, event, new_prefix):
         """Установить новый префикс команд"""
         if not new_prefix or len(new_prefix) > 3:
-            await event.edit("[❌](emoji/5210952531676504517) **Префикс должен быть от 1 до 3 символов!**")
+            await event.edit("<emoji document_id=5210952531676504517>❌</emoji> <b>Префикс должен быть от 1 до 3 символов!</b>")
             return
         
         if ' ' in new_prefix:
-            await event.edit("[❌](emoji/5210952531676504517) **Префикс не может содержать пробелы!**")
+            await event.edit("<emoji document_id=5210952531676504517>❌</emoji> <b>Префикс не может содержать пробелы!</b>")
             return
         
         success = self.bot.db.set_config_value('command_prefix', new_prefix)
         
         if success:
             self.bot.command_prefix = new_prefix
-            await event.edit(f"[✅](emoji/5206607081334906820) **Префикс команд изменен на:** `{new_prefix}`")
+            await event.edit(f"<emoji document_id=5206607081334906820>✅</emoji> <b>Префикс команд изменен на:</b> <code>{new_prefix}</code>")
         else:
-            await event.edit("[❌](emoji/5210952531676504517) Ошибка при изменении префикса!")
+            await event.edit("<emoji document_id=5210952531676504517>❌</emoji> <b>Ошибка при изменении префикса!</b>")
 
     async def set_autoclean(self, event, state):
         """Включить/выключить автоклинер"""
         if state not in ['on', 'off']:
-            await event.edit("[❌](emoji/5210952531676504517)**Используйте:** `on` **или** `off`")
+            await event.edit("<emoji document_id=5210952531676504517>❌</emoji> <b>Используйте:</b> <code>on</code> <b>или</b> <code>off</code>")
             return
         
         enabled = state == 'on'
@@ -117,9 +117,9 @@ class ConfiguratorModule:
             self.bot.autocleaner.update_settings(enabled=enabled)
             
             status = "включен" if enabled else "выключен"
-            await event.edit(f"[✅](emoji/5206607081334906820) **Автоклинер** {status}!")
+            await event.edit(f"<emoji document_id=5206607081334906820>✅</emoji> <b>Автоклинер</b> {status}!")
         else:
-            await event.edit("[❌](emoji/5210952531676504517) **Ошибка при изменении настроек автоклинера!**")
+            await event.edit("<emoji document_id=5210952531676504517>❌</emoji> <b>Ошибка при изменении настроек автоклинера!</b>")
 
     async def set_autoclean_delay(self, event, delay_str):
         """Установить задержку автоклинера"""
@@ -127,11 +127,11 @@ class ConfiguratorModule:
             delay = int(delay_str)
             
             if delay < 10:
-                await event.edit("[❌](emoji/5210952531676504517) **Задержка должна быть не менее 10 секунд!**")
+                await event.edit("<emoji document_id=5210952531676504517>❌</emoji> <b>Задержка должна быть не менее 10 секунд!</b>")
                 return
             
             if delay > 86400:  # 24 часа
-                await event.edit("[❌](emoji/5210952531676504517) **Задержка не может превышать 24 часа (86400 секунд)!**")
+                await event.edit("<emoji document_id=5210952531676504517>❌</emoji> <b>Задержка не может превышать 24 часа (86400 секунд)!</b>")
                 return
             
             success = self.bot.db.set_config_value('autoclean_delay', str(delay))
@@ -148,17 +148,17 @@ class ConfiguratorModule:
                     hours = delay // 3600
                     time_str = f"{hours} часов"
                 
-                await event.edit(f"[✅](emoji/5206607081334906820) **Задержка автоклинера установлена:** {time_str}")
+                await event.edit(f"<emoji document_id=5206607081334906820>✅</emoji> <b>Задержка автоклинера установлена:</b> {time_str}")
             else:
-                await event.edit("[❌](emoji/5210952531676504517) **Ошибка при установке задержки!**")
+                await event.edit("<emoji document_id=5210952531676504517>❌</emoji> <b>Ошибка при установке задержки!</b>")
                 
         except ValueError:
-            await event.edit("[❌](emoji/5210952531676504517) **Задержка должна быть числом!**")
+            await event.edit("<emoji document_id=5210952531676504517>❌</emoji> <b>Задержка должна быть числом!</b>")
 
     async def set_autostart(self, event, state):
         """Включить/выключить автозапуск бота"""
         if state not in ['on', 'off']:
-            await event.edit("[❌](emoji/5210952531676504517)** Используйте: `on` или `off`**")
+            await event.edit("<emoji document_id=5210952531676504517>❌</emoji> <b>Используйте:</b> <code>on</code> <b>или</b> <code>off</code>")
             return
         
         enabled = state == 'on'
@@ -205,13 +205,13 @@ class ConfiguratorModule:
             
             if success:
                 status = "включен" if enabled else "выключен"
-                await event.edit(f"**[✅](emoji/5206607081334906820) Автозапуск** {status}!")
+                await event.edit(f"<emoji document_id=5206607081334906820>✅</emoji> <b>Автозапуск</b> {status}!")
             else:
-                await event.edit("[❌](emoji/5210952531676504517)** Ошибка при изменении настроек автозапуска!**")
+                await event.edit("<emoji document_id=5210952531676504517>❌</emoji> <b>Ошибка при изменении настроек автозапуска!</b>")
                 
         except Exception as e:
             logger.error(f"Ошибка изменения автозапуска: {str(e)}")
-            await event.edit("[❌](emoji/5210952531676504517)** Ошибка при изменении настроек автозапуска!**")
+            await event.edit("<emoji document_id=5210952531676504517>❌</emoji> <b>Ошибка при изменении настроек автозапуска!</b>")
 
     async def show_status(self, event):
         """Показать текущие настройки"""
@@ -230,15 +230,18 @@ class ConfiguratorModule:
             hours = autoclean_delay // 3600
             delay_str = f"{hours} часов"
         
+        autoclean_status = "<emoji document_id=5206607081334906820>✅</emoji> Включен" if autoclean_enabled else "<emoji document_id=5210952531676504517>❌</emoji> Выключен"
+        autostart_status = "<emoji document_id=5206607081334906820>✅</emoji> Включен" if autostart_enabled else "<emoji document_id=5210952531676504517>❌</emoji> Выключен"
+        
         status_text = f"""
-[⚙️](emoji/5370932688993656500) **Текущие настройки бота**
+<emoji document_id=5370932688993656500>⚙️</emoji> <b>Текущие настройки бота</b>
 
-**Префикс команд:** `{prefix}`
-[▪️](emoji/5251481573953405172)**Автоклинер:** {'[✅](emoji/5206607081334906820) Включен' if autoclean_enabled else '[❌](emoji/5210952531676504517) Выключен'}
-[▪️](emoji/5251481573953405172)**Задержка автоклинера:** {delay_str}
-[▪️](emoji/5251481573953405172)**Автозапуск:** {'[✅](emoji/5206607081334906820) Включен' if autostart_enabled else '[❌](emoji/5210952531676504517) Выключен'}
+<b>Префикс команд:</b> <code>{prefix}</code>
+<emoji document_id=5251481573953405172>▪️</emoji> <b>Автоклинер:</b> {autoclean_status}
+<emoji document_id=5251481573953405172>▪️</emoji> <b>Задержка автоклинера:</b> {delay_str}
+<emoji document_id=5251481573953405172>▪️</emoji> <b>Автозапуск:</b> {autostart_status}
 
-Используйте `{prefix}config help` для просмотра всех команд
+Используйте <code>{prefix}config help</code> для просмотра всех команд
 """
         await event.edit(status_text)
 

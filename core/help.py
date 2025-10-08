@@ -179,10 +179,10 @@ class HelpModule:
                 if not module_info:
                     text = ""
                     if is_premium:
-                        text += f"[⚙️](emoji/{self.command_emoji_id}) "
-                    text += f"**Информация о команде:** `{prefix}{command_info['command']}`\n\n"
-                    text += f"**Описание:** {command_info['description']}\n"
-                    text += f"**Модуль:** {command_info['module']}"
+                        text += f"<emoji document_id={self.command_emoji_id}>⚙️</emoji> "
+                    text += f"<b>Информация о команде:</b> <code>{prefix}{command_info['command']}</code>\n\n"
+                    text += f"<b>Описание:</b> {command_info['description']}\n"
+                    text += f"<b>Модуль:</b> {command_info['module']}"
                     
                     await event.edit(text)
                     return
@@ -222,7 +222,7 @@ class HelpModule:
                 module_info = await self.get_module_info(found_module)
                 
                 if not module_info:
-                    await event.edit(f"[🚫](emoji/5240241223632954241) **Информация о модуле** `{found_module}` недоступна")
+                    await event.edit(f"<emoji document_id=5240241223632954241>🚫</emoji> <b>Информация о модуле</b> <code>{found_module}</code> недоступна")
                     return
                 
                 text = help_format.format_module_info(
@@ -234,7 +234,7 @@ class HelpModule:
                 await event.edit(text)
                 return
             else:
-                error_msg = msg.error(f"Команда или модуль `{command_query}` не найден")
+                error_msg = msg.error(f"Команда или модуль <code>{command_query}</code> не найден")
                 await event.edit(error_msg)
                 return
 
@@ -251,12 +251,12 @@ class HelpModule:
             if module_info['name'] not in self.bot.modules:
                 continue
                 
-            commands_list = [f'`{prefix}{cmd["command"]}`' for cmd in module_info['commands']]
+            commands_list = [f'<code>{prefix}{cmd["command"]}</code>' for cmd in module_info['commands']]
             
             if is_premium:
-                stock_list.append(f"[▪️](emoji/{self.stock_emoji_id}) **{module_info['name']}**: ( {' | '.join(commands_list)} )")
+                stock_list.append(f"<emoji document_id={self.stock_emoji_id}>▪️</emoji> <b>{module_info['name']}</b>: ( {' | '.join(commands_list)} )")
             else:
-                stock_list.append(f"▪️ **{module_info['name']}**: ( {' | '.join(commands_list)} )")
+                stock_list.append(f"▪️ <b>{module_info['name']}</b>: ( {' | '.join(commands_list)} )")
         
         custom_list = []
         for module_info in all_module_info:
@@ -266,12 +266,12 @@ class HelpModule:
             if module_info['name'] not in self.bot.modules:
                 continue
                 
-            commands_list = [f'`{prefix}{cmd["command"]}`' for cmd in module_info['commands']]
+            commands_list = [f'<code>{prefix}{cmd["command"]}</code>' for cmd in module_info['commands']]
             
             if is_premium:
-                custom_list.append(f"[▫️](emoji/{self.custom_emoji_id}) **{module_info['name']}**: ( {' | '.join(commands_list)} )")
+                custom_list.append(f"<emoji document_id={self.custom_emoji_id}>▫️</emoji> <b>{module_info['name']}</b>: ( {' | '.join(commands_list)} )")
             else:
-                custom_list.append(f"▫️ **{module_info['name']}**: ( {' | '.join(commands_list)} )")
+                custom_list.append(f"▫️ <b>{module_info['name']}</b>: ( {' | '.join(commands_list)} )")
         
         reply = help_format.format_main_help(
             total_modules, is_premium, self.total_emoji_id, self.section_emoji_id,

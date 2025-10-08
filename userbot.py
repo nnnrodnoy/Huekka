@@ -21,7 +21,7 @@ import hashlib
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 from telethon.tl.functions.channels import JoinChannelRequest
-from core.parser import CustomParseMode, EmojiHandler  # Удаляем импорт HTMLParser
+from core.parser import CustomHtmlParser, EmojiHandler
 from core.log import setup_logging
 from config import BotConfig
 from core.autocleaner import AutoCleaner
@@ -137,8 +137,8 @@ class UserBot:
             self.api_hash
         )
         
-        # Используем только CustomParseMode (Markdown)
-        self.client.parse_mode = CustomParseMode()
+        # Используем CustomHtmlParser вместо CustomParseMode
+        self.client.parse_mode = CustomHtmlParser()
     
     async def start(self):
         await self.client.connect()
@@ -163,12 +163,15 @@ class UserBot:
         print(f"{Colors.LIGHT_BLUE}[+] Subscribe to @BotHuekka telegram{Colors.ENDC}\n")
         
         @self.client.on(events.NewMessage(outgoing=True))
-        async def command_handler(event):
+        async def universal_handler(event):
+            """Универсальный обработчик всех исходящих сообщений"""
+            # Сначала проверяем, является ли сообщение командой
             prefix = re.escape(self.command_prefix)
             pattern = r'^{}(\w+)(?:\s+([\s\S]*))?$'.format(prefix)
             
             match = re.match(pattern, event.text)
             if match:
+                # Это команда - обрабатываем как команду
                 cmd = match.group(1).lower()
                 args = match.group(2) or ""
                 
@@ -176,13 +179,29 @@ class UserBot:
                     try:
                         event.text = f"{self.command_prefix}{cmd} {args}"
                         await self.commands[cmd]["handler"](event)
+                        return  # Прерываем выполнение после обработки команды
                     except Exception as e:
                         logger.error(f"Ошибка в команде {self.command_prefix}{cmd}: {str(e)}")
-                        await event.edit(f"⚠️ Ошибка: {str(e)}")
-        
-        @self.client.on(events.NewMessage(outgoing=True))
-        async def message_handler(event):
-            await EmojiHandler.process_message(event)
+                        await event.edit(f"<a href='emoji/5240241223632954241'>🚫</a> <b>Ошибка:</b> {str(e)}")
+                        return
+            
+            # Если это не команда, проверяем наличие эмодзи-маркеров
+            if event.text and '<emoji document_id=' in event.text:
+                try:
+                    logger.info(f"Обнаружены эмодзи-маркеры в сообщении: {event.text}")
+                    
+                    # Преобразуем маркеры в HTML формат
+                    new_text = EmojiHandler.convert_emoji_markers(event.text)
+                    
+                    if new_text != event.text:
+                        logger.info(f"Преобразовано в: {new_text}")
+                        await event.edit(new_text)
+                        logger.info("Сообщение успешно отредактировано с эмодзи")
+                    else:
+                        logger.info("Текст не изменился после преобразования")
+                        
+                except Exception as e:
+                    logger.error(f"Ошибка при обработке эмодзи-маркеров: {str(e)}")
         
         await self.load_modules()
         

@@ -93,17 +93,17 @@ class HuekkaModule:
         """Обработчик команды .huekka"""
         try:
             if not self.image_path.exists():
-                error_msg = f"[🚫](emoji/5240241223632954241) Изображение не найдено по пути: {self.image_path}\n"
-                error_msg += f"Текущая рабочая директория: {Path.cwd()}\n"
-                error_msg += f"Абсолютный путь: {self.image_path.resolve()}\n"
-                error_msg += f"Проверьте, что файл существует по указанному пути."
+                error_msg = f"<emoji document_id=5240241223632954241>🚫</emoji> <b>Изображение не найдено по пути:</b> <code>{self.image_path}</code>\n"
+                error_msg += f"<b>Текущая рабочая директория:</b> <code>{Path.cwd()}</code>\n"
+                error_msg += f"<b>Абсолютный путь:</b> <code>{self.image_path.resolve()}</code>\n"
+                error_msg += f"<b>Проверьте, что файл существует по указанному пути.</b>"
                 await event.edit(error_msg)
                 return
             
             message_text = (
-                f"**[🌑](emoji/5370932688993656500) Huekka** - __Version__ __ {BotConfig.VERSION}__\n\n"
-                f"**[ℹ️](emoji/5377520790868603876) GitHub**: __[Huekka]({BotConfig.GITHUB_URL})__\n"
-                f"**[ℹ️](emoji/5377520790868603876) Channel**: __[Huekka](https://t.me/BotHuekka)__"
+                f"<emoji document_id=5370932688993656500>🌑</emoji> <b>Huekka</b> - <i>Version</i> <i>{BotConfig.VERSION}</i>\n\n"
+                f"<emoji document_id=5377520790868603876>ℹ️</emoji> <b>GitHub</b>: <i><a href='{BotConfig.GITHUB_URL}'>Huekka</a></i>\n"
+                f"<emoji document_id=5377520790868603876>ℹ️</emoji> <b>Channel</b>: <i><a href='https://t.me/BotHuekka'>Huekka</a></i>"
             )
             
             await event.delete() 
@@ -115,9 +115,9 @@ class HuekkaModule:
             )
             
         except Exception as e:
-            error_msg = f"[🚫](emoji/5240241223632954241) **Ошибка при отправке информации:** {str(e)}"
+            error_msg = f"<emoji document_id=5240241223632954241>🚫</emoji> <b>Ошибка при отправке информации:</b> {str(e)}"
             await event.edit(error_msg)
-            logger.error(f"**Ошибка в команде** '.huekka:' {str(e)}")
+            logger.error(f"<b>Ошибка в команде</b> '.huekka:' {str(e)}")
 
     async def cmd_ping(self, event):
         """Обработчик команды .ping"""
@@ -125,17 +125,17 @@ class HuekkaModule:
         message_time = event.message.date.timestamp()
         ping_time = round((current_time - message_time) * 1000, 2)
         
-        await event.edit(f"[▫️](emoji/5370932688993656500) **сейчас пинг** - `{ping_time}ms`")
+        await event.edit(f"<emoji document_id=5370932688993656500>▫️</emoji> <b>сейчас пинг</b> - <code>{ping_time}ms</code>")
 
     async def cmd_setamoji(self, event):
         """Обработчик команды .setamoji - получение маркеров для премиум-эмодзи"""
         reply = await event.get_reply_message()
         if not reply:
-            await event.edit("[❌](emoji/5210952531676504517) **Ответьте на сообщение с премиум-эмодзи!**")
+            await event.edit("<emoji document_id=5210952531676504517>❌</emoji> <b>Ответьте на сообщение с премиум-эмодзи!</b>")
             return
             
         if not reply.entities:
-            await event.edit("[❌](emoji/5210952531676504517) **В сообщении нет премиум-эмодзи!**")
+            await event.edit("<emoji document_id=5210952531676504517>❌</emoji> <b>В сообщении нет премиум-эмодзи!</b>")
             return
             
         custom_emojis = []
@@ -145,14 +145,14 @@ class HuekkaModule:
                 custom_emojis.append((emoji_char, entity.document_id))
         
         if not custom_emojis:
-            await event.edit("[❌](emoji/5210952531676504517) **В сообщении нет премиум-эмодзи!**")
+            await event.edit("<emoji document_id=5210952531676504517>❌</emoji> <b>В сообщении нет премиум-эмодзи!</b>")
             return
             
-        result = "[▪️](emoji/5818774589714468177) **Premium-Amoji:**\n\n"
+        result = "<emoji document_id=5818774589714468177>▪️</emoji> <b>Premium-Amoji:</b>\n\n"
         
         for i, (emoji_char, doc_id) in enumerate(custom_emojis, 1):
-            result += f"**1.** `MARKDOWN` - `[{emoji_char}](emoji/{doc_id})`\n\n"
-            result += f"**2.** `HTML` - `<emoji document_id={doc_id}>{emoji_char}</emoji>`\n"
+            result += f"<b>1.</b> <code>MARKDOWN</code> - <code>[{emoji_char}](emoji/{doc_id})</code>\n\n"
+            result += f"<b>2.</b> <code>HTML</code> - <code>&lt;emoji document_id={doc_id}&gt;{emoji_char}&lt;/emoji&gt;</code>\n"
         
         await event.edit(result)
 
@@ -177,9 +177,9 @@ class HuekkaModule:
             uptime = text.format_time(time.time() - self.bot.start_time)
             
             if is_premium:
-                msg_text = f"[🕒](emoji/{self.clock_emoji_id}) **Время работы:** `{uptime}`"
+                msg_text = f"<emoji document_id={self.clock_emoji_id}>🕒</emoji> <b>Время работы:</b> <code>{uptime}</code>"
             else:
-                msg_text = f"🕒 **Время работы:** `{uptime}`"
+                msg_text = f"🕒 <b>Время работы:</b> <code>{uptime}</code>"
             
             msg_obj = await event.edit(msg_text)
             await self.add_to_autoclean(msg_obj)

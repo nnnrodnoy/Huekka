@@ -163,8 +163,8 @@ class UserBot:
         print(f"{Colors.LIGHT_BLUE}[+] Subscribe to @BotHuekka telegram{Colors.ENDC}\n")
         
         @self.client.on(events.NewMessage(outgoing=True))
-        async def universal_handler(event):
-            """Универсальный обработчик всех исходящих сообщений"""
+        async def outgoing_handler(event):
+            """Обработчик исходящих сообщений для команд"""
             # Сначала проверяем, является ли сообщение командой
             prefix = re.escape(self.command_prefix)
             pattern = r'^{}(\w+)(?:\s+([\s\S]*))?$'.format(prefix)
@@ -184,9 +184,16 @@ class UserBot:
                         logger.error(f"Ошибка в команде {self.command_prefix}{cmd}: {str(e)}")
                         await event.edit(f"<a href='emoji/5240241223632954241'>🚫</a> <b>Ошибка:</b> {str(e)}")
                         return
+        
+        @self.client.on(events.NewMessage(outgoing=True))
+        async def emoji_handler(event):
+            """Обработчик исходящих сообщений для эмодзи"""
+            # Пропускаем команды и сообщения без текста
+            if not event.text or event.text.startswith(self.command_prefix):
+                return
             
-            # Если это не команда, проверяем наличие эмодзи-маркеров
-            if event.text and '<emoji document_id=' in event.text:
+            # Проверяем наличие эмодзи-маркеров в сообщении
+            if '<emoji document_id=' in event.text:
                 try:
                     logger.info(f"Обнаружены эмодзи-маркеры в сообщении: {event.text}")
                     
@@ -196,7 +203,7 @@ class UserBot:
                     if new_text != event.text:
                         logger.info(f"Преобразовано в: {new_text}")
                         await event.edit(new_text)
-                        logger.info("Сообщение успешно отредактировано с эмодзи")
+                        logger.info("Сообщение успешно обработано с эмодзи")
                     else:
                         logger.info("Текст не изменился после преобразования")
                         

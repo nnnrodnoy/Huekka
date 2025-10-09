@@ -33,12 +33,9 @@ MODULE_INFO = get_module_info()
 class HelpModule:
     def __init__(self, bot):
         self.bot = bot
-        self.stock_modules = BotConfig.STOCK_MODULES
         
         self.total_emoji_id = BotConfig.EMOJI_IDS["total"]
         self.section_emoji_id = BotConfig.EMOJI_IDS["section"]
-        self.stock_emoji_id = BotConfig.EMOJI_IDS["stock"]
-        self.custom_emoji_id = BotConfig.EMOJI_IDS["custom"]
         self.developer_emoji_id = BotConfig.EMOJI_IDS["dev"]
         self.command_emoji_id = BotConfig.EMOJI_IDS["command"]
         
@@ -75,8 +72,7 @@ class HelpModule:
                         info['developer'],
                         info['version'],
                         info['description'],
-                        info['commands'],
-                        module_name in self.stock_modules
+                        info['commands']
                     )
                     
                     return info
@@ -102,15 +98,13 @@ class HelpModule:
                     developer,
                     version,
                     description,
-                    commands,
-                    module_name in self.stock_modules
+                    commands
                 )
                 
                 return {
                     "name": module_name,
                     "description": description,
                     "commands": commands,
-                    "is_stock": module_name in self.stock_modules,
                     "version": version,
                     "developer": developer
                 }
@@ -131,15 +125,13 @@ class HelpModule:
             "@BotHuekka",
             "1.0.0",
             self.bot.module_descriptions.get(module_name, ""),
-            commands,
-            module_name in self.stock_modules
+            commands
         )
         
         return {
             "name": module_name,
             "description": self.bot.module_descriptions.get(module_name, ""),
             "commands": commands,
-            "is_stock": module_name in self.stock_modules,
             "version": "1.0.0",
             "developer": "@BotHuekka"
         }
@@ -189,8 +181,7 @@ class HelpModule:
                 
                 text = help_format.format_module_info(
                     module_info, is_premium, self.total_emoji_id, self.get_random_smile(),
-                    self.stock_emoji_id, self.custom_emoji_id, self.command_emoji_id,
-                    self.developer_emoji_id, prefix
+                    self.command_emoji_id, self.developer_emoji_id, prefix
                 )
                 
                 await event.edit(text)
@@ -227,8 +218,7 @@ class HelpModule:
                 
                 text = help_format.format_module_info(
                     module_info, is_premium, self.total_emoji_id, self.get_random_smile(),
-                    self.stock_emoji_id, self.custom_emoji_id, self.command_emoji_id,
-                    self.developer_emoji_id, prefix
+                    self.command_emoji_id, self.developer_emoji_id, prefix
                 )
                 
                 await event.edit(text)
@@ -243,39 +233,21 @@ class HelpModule:
         # Получаем информацию о всех модулях из базы данных
         all_module_info = self.bot.db.get_all_module_info()
         
-        stock_list = []
+        modules_list = []
         for module_info in all_module_info:
-            if module_info['name'] not in self.stock_modules:
-                continue
-                
             if module_info['name'] not in self.bot.modules:
                 continue
                 
             commands_list = [f'<code>{prefix}{cmd["command"]}</code>' for cmd in module_info['commands']]
             
             if is_premium:
-                stock_list.append(f"<emoji document_id={self.stock_emoji_id}>▪️</emoji> <b>{module_info['name']}</b>: ( {' | '.join(commands_list)} )")
+                modules_list.append(f"<emoji document_id={self.command_emoji_id}>▪️</emoji> <b>{module_info['name']}</b>: ( {' | '.join(commands_list)} )")
             else:
-                stock_list.append(f"▪️ <b>{module_info['name']}</b>: ( {' | '.join(commands_list)} )")
-        
-        custom_list = []
-        for module_info in all_module_info:
-            if module_info['name'] in self.stock_modules:
-                continue
-                
-            if module_info['name'] not in self.bot.modules:
-                continue
-                
-            commands_list = [f'<code>{prefix}{cmd["command"]}</code>' for cmd in module_info['commands']]
-            
-            if is_premium:
-                custom_list.append(f"<emoji document_id={self.custom_emoji_id}>▫️</emoji> <b>{module_info['name']}</b>: ( {' | '.join(commands_list)} )")
-            else:
-                custom_list.append(f"▫️ <b>{module_info['name']}</b>: ( {' | '.join(commands_list)} )")
+                modules_list.append(f"▪️ <b>{module_info['name']}</b>: ( {' | '.join(commands_list)} )")
         
         reply = help_format.format_main_help(
             total_modules, is_premium, self.total_emoji_id, self.section_emoji_id,
-            self.stock_emoji_id, self.custom_emoji_id, stock_list, custom_list, prefix
+            self.command_emoji_id, modules_list, prefix
         )
         
         await event.edit(reply)

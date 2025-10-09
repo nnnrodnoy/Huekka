@@ -287,8 +287,7 @@ class UserBot:
                                 module_info['developer'],
                                 module_info['version'],
                                 module_info['description'],
-                                module_info['commands'],
-                                True  # is_stock = True для core-модулей
+                                module_info['commands']
                             )
                 except Exception as e:
                     error_msg = f"Ошибка загрузки core-модуля {file}: {str(e)}"
@@ -333,8 +332,7 @@ class UserBot:
                                 module_info['developer'],
                                 module_info['version'],
                                 module_info['description'],
-                                module_info['commands'],
-                                False  # is_stock = False для пользовательских модулей
+                                module_info['commands']
                             )
                 except Exception as e:
                     error_msg = f"Ошибка загрузки модуля {file}: {str(e)}"
@@ -384,3 +382,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+[file content end]

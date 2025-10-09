@@ -245,6 +245,7 @@ class HelpModule:
             else:
                 modules_list.append(f"▪️ <b>{module_info['name']}</b>: ( {' | '.join(commands_list)} )")
         
+        # Исправленный вызов format_main_help с правильным количеством аргументов
         reply = help_format.format_main_help(
             total_modules, is_premium, self.total_emoji_id, self.section_emoji_id,
             self.command_emoji_id, modules_list, prefix

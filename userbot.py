@@ -85,7 +85,6 @@ class UserBot:
         self.commands = {}
         self.cache_dir = "cash"
         self.module_descriptions = {}
-        self.core_modules = BotConfig.CORE_MODULES
         self.post_restart_actions = []
         self.last_loaded_module = None
         self.config = BotConfig
@@ -244,99 +243,61 @@ class UserBot:
         await self.client.run_until_disconnected()
 
     async def load_modules(self):
-        core_modules_dir = "core"
+        """Загрузка модулей из всех директорий"""
+        modules_dirs = ["core", "modules"]
         protected_names = ["typing", "sys", "os", "json", "asyncio", "logging", "importlib", "telethon", "config"]
         
-        for file in os.listdir(core_modules_dir):
-            if file.endswith(".py") and file != "__init__.py":
-                module_name = file[:-3]
+        for modules_dir in modules_dirs:
+            if not os.path.exists(modules_dir):
+                logger.warning(f"Директория {modules_dir} не существует, пропускаем")
+                continue
                 
-                if module_name == "updater":
-                    continue
-                
-                if module_name in protected_names:
-                    logger.error(f"Пропуск core-модуля с защищенным именем: {file}")
-                    continue
+            for file in os.listdir(modules_dir):
+                if file.endswith(".py") and file != "__init__.py":
+                    module_name = file[:-3]
                     
-                try:
-                    module_path = os.path.join(core_modules_dir, file)
+                    # Пропускаем updater только в core директории
+                    if modules_dir == "core" and module_name == "updater":
+                        continue
                     
-                    spec = importlib.util.spec_from_file_location(module_name, module_path)
-                    module = importlib.util.module_from_spec(spec)
-                    sys.modules[module_name] = module
-                    spec.loader.exec_module(module)
-                    
-                    if hasattr(module, 'setup'):
-                        before = len(self.commands)
-                        setup_func = module.setup
+                    if module_name in protected_names:
+                        logger.error(f"Пропуск модуля с защищенным именем: {file}")
+                        continue
                         
-                        if inspect.iscoroutinefunction(setup_func):
-                            await setup_func(self)
-                        else:
-                            setup_func(self)
+                    try:
+                        module_path = os.path.join(modules_dir, file)
+                        
+                        spec = importlib.util.spec_from_file_location(module_name, module_path)
+                        module = importlib.util.module_from_spec(spec)
+                        sys.modules[module_name] = module
+                        spec.loader.exec_module(module)
+                        
+                        if hasattr(module, 'setup'):
+                            before = len(self.commands)
+                            setup_func = module.setup
                             
-                        after = len(self.commands)
-                        
-                        logger.debug(f"Core-модуль {module_name} загружен (команд: {after - before})")
-                        
-                        # Сохраняем информацию о core-модуле в базу данных
-                        if hasattr(module, 'get_module_info'):
-                            module_info = module.get_module_info()
-                            self.db.set_module_info(
-                                module_info['name'],
-                                module_info['developer'],
-                                module_info['version'],
-                                module_info['description'],
-                                module_info['commands']
-                            )
-                except Exception as e:
-                    error_msg = f"Ошибка загрузки core-модуля {file}: {str(e)}"
-                    logger.error(error_msg)
-        
-        modules_dir = "modules"
-        
-        for file in os.listdir(modules_dir):
-            if file.endswith(".py") and file != "__init__.py":
-                module_name = file[:-3]
-                
-                if module_name in protected_names:
-                    logger.error(f"Пропуск модуля с защищенным именем: {file}")
-                    continue
-                    
-                try:
-                    module_path = os.path.join(modules_dir, file)
-                    
-                    spec = importlib.util.spec_from_file_location(module_name, module_path)
-                    module = importlib.util.module_from_spec(spec)
-                    sys.modules[module_name] = module
-                    spec.loader.exec_module(module)
-                    
-                    if hasattr(module, 'setup'):
-                        before = len(self.commands)
-                        setup_func = module.setup
-                        
-                        if inspect.iscoroutinefunction(setup_func):
-                            await setup_func(self)
-                        else:
-                            setup_func(self)
+                            if inspect.iscoroutinefunction(setup_func):
+                                await setup_func(self)
+                            else:
+                                setup_func(self)
+                                
+                            after = len(self.commands)
                             
-                        after = len(self.commands)
-                        
-                        logger.debug(f"Модуль {module_name} загружен (команд: {after - before})")
-                        
-                        # Сохраняем информацию о пользовательском модуле в базу данных
-                        if hasattr(module, 'get_module_info'):
-                            module_info = module.get_module_info()
-                            self.db.set_module_info(
-                                module_info['name'],
-                                module_info['developer'],
-                                module_info['version'],
-                                module_info['description'],
-                                module_info['commands']
-                            )
-                except Exception as e:
-                    error_msg = f"Ошибка загрузки модуля {file}: {str(e)}"
-                    logger.error(error_msg)
+                            logger.debug(f"Модуль {module_name} загружен из {modules_dir} (команд: {after - before})")
+                            
+                            # Сохраняем информацию о модуле в базу данных
+                            if hasattr(module, 'get_module_info'):
+                                module_info = module.get_module_info()
+                                self.db.set_module_info(
+                                    module_info['name'],
+                                    module_info['developer'],
+                                    module_info['version'],
+                                    module_info['description'],
+                                    module_info['commands']
+                                )
+                    except Exception as e:
+                        error_msg = f"Ошибка загрузки модуля {file} из {modules_dir}: {str(e)}"
+                        logger.error(error_msg)
 
     def register_command(self, cmd, handler, description="", module_name="System"):
         self.commands[cmd] = {

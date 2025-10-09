@@ -15,10 +15,6 @@ class BotConfig:
     CORE_MODULES = ["Help", "System", "Loader", "Updater", "Configurator", 
                     "AutoCleaner", "LimiterTest", "DependencyInstaller"]
     
-    # Список стандартных модулей для help
-    STOCK_MODULES = ["Help", "System", "Loader", "Updater", "Configurator", 
-                     "AutoCleaner", "Huekka"]
-    
     # Настройки APILimiter с новой логикой ограничений
     API_LIMITER = {
         # Ограничение по количеству запросов
@@ -84,8 +80,6 @@ class BotConfig:
         "info": 5251522431977291010,      # ℹ️
         "total": 5422360919453756368,     # 🕒
         "section": 5377520790868603876,   # 👁️
-        "stock": 5251522431977291010,     # ℹ️
-        "custom": 5251481573953405172,    # ▫️
         "restart": 4904936030232117798,   # ⚙️
         "clock": 5422360919453756368,     # 🕒
         "eye": 5377520790868603876,       # 👁️

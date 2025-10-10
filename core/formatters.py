@@ -128,8 +128,7 @@ class ModuleInfoFormatters:
     
     @staticmethod
     def format_module_info(module_info, is_premium, total_emoji_id, random_smile,
-                          stock_emoji_id, custom_emoji_id, command_emoji_id,
-                          developer_emoji_id, prefix):
+                          command_emoji_id, developer_emoji_id, prefix):
         """Форматирование информации о модуле (универсальный)"""
         text = ""
         if is_premium:
@@ -140,12 +139,9 @@ class ModuleInfoFormatters:
                               
         for cmd in module_info['commands']:
             if is_premium:
-                if module_info.get('is_stock', False):
-                    text += f"<emoji document_id={stock_emoji_id}>▪️</emoji> "
-                else:
-                    text += f"<emoji document_id={custom_emoji_id}>▫️</emoji> "
+                text += f"<emoji document_id={command_emoji_id}>▫️</emoji> "
             else:
-                text += "▪️ " if module_info.get('is_stock', False) else "▫️ "
+                text += "▫️ "
             
             text += f"<code>{prefix}{cmd['command']}</code> - <i>{cmd['description']}</i>\n"
         
@@ -207,18 +203,16 @@ class HelpFormatters:
     
     @staticmethod
     def format_module_info(module_info, is_premium, total_emoji_id, random_smile, 
-                          stock_emoji_id, custom_emoji_id, command_emoji_id, 
-                          developer_emoji_id, prefix):
+                          command_emoji_id, developer_emoji_id, prefix):
         """Форматирование информации о модуле (как в help.py)"""
         return ModuleInfoFormatters.format_module_info(
             module_info, is_premium, total_emoji_id, random_smile,
-            stock_emoji_id, custom_emoji_id, command_emoji_id,
-            developer_emoji_id, prefix
+            command_emoji_id, developer_emoji_id, prefix
         )
 
     @staticmethod
     def format_main_help(total_modules, is_premium, total_emoji_id, section_emoji_id,
-                        stock_emoji_id, custom_emoji_id, stock_list, custom_list, prefix):
+                        command_emoji_id, modules_list, prefix):
         """Форматирование главной справки (как в help.py)"""
         reply = ""
         
@@ -230,13 +224,8 @@ class HelpFormatters:
         
         if is_premium:
             reply += f"<emoji document_id={section_emoji_id}>👁️</emoji> "
-        reply += "<b>Стандартные модули:</b>\n"
-        reply += "\n".join(stock_list) + "\n\n"
-        
-        if is_premium:
-            reply += f"<emoji document_id={section_emoji_id}>👁️</emoji> "
-        reply += "<b>Пользовательские модули:</b>\n"
-        reply += "\n".join(custom_list)
+        reply += "<b>Модули:</b>\n"
+        reply += "\n".join(modules_list)
         
         return reply
 
